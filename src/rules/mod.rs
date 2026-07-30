@@ -1,4 +1,5 @@
 mod color;
+mod comments;
 mod deep_nesting;
 mod emoji;
 mod file_size;
@@ -8,6 +9,7 @@ mod key;
 mod motion;
 mod no_comments;
 mod regex_rule;
+mod stray_todo;
 mod unused_marker;
 
 use anyhow::bail;

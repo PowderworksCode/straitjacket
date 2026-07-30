@@ -19,6 +19,7 @@ It deliberately contains no prose scoring and no semantic-analysis frontend.
 | `file-size` | Flags files over 1,500 lines by default. |
 | `deep-nesting` | Flags code nested beyond eight indentation levels by default. |
 | `no-comments` | Opt-in mode that flags comments while respecting strings and shebangs. |
+| `stray-todo` | Flags TODO, TBD, FIXME, and WIP markers left in comments. |
 | `unused-marker` | Flags suppression markers that did not suppress anything. |
 
 ## Usage
@@ -68,6 +69,7 @@ paths = ["src", "tests"]
 skip = ["motion"]
 max-lines = 1000
 file-size-exclude = ["notes/"]
+todo-exclude = ["notes/"]
 theme-files = ["src/theme.css"]
 max-nesting = 5
 no-comments = false

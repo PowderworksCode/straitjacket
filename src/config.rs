@@ -18,6 +18,7 @@ pub struct FileConfig {
     pub skip: Option<Vec<String>>,
     pub max_lines: Option<usize>,
     pub file_size_exclude: Option<Vec<String>>,
+    pub todo_exclude: Option<Vec<String>>,
     pub theme_files: Option<Vec<String>>,
     pub max_nesting: Option<usize>,
     pub no_comments: Option<bool>,
@@ -35,6 +36,7 @@ pub struct Settings {
     pub skip: Vec<String>,
     pub max_lines: usize,
     pub file_size_exclude: Vec<PathBuf>,
+    pub todo_exclude: Vec<PathBuf>,
     pub theme_files: Vec<PathBuf>,
     pub max_nesting: usize,
     pub no_comments: bool,
@@ -53,6 +55,7 @@ impl Default for Settings {
             skip: Vec::new(),
             max_lines: DEFAULT_MAX_LINES,
             file_size_exclude: Vec::new(),
+            todo_exclude: Vec::new(),
             theme_files: Vec::new(),
             max_nesting: DEFAULT_MAX_NESTING,
             no_comments: false,
@@ -83,6 +86,9 @@ impl Settings {
         }
         if let Some(paths) = file.file_size_exclude {
             self.file_size_exclude = paths.into_iter().map(PathBuf::from).collect();
+        }
+        if let Some(paths) = file.todo_exclude {
+            self.todo_exclude = paths.into_iter().map(PathBuf::from).collect();
         }
         if let Some(paths) = file.theme_files {
             self.theme_files = paths.into_iter().map(PathBuf::from).collect();
