@@ -1,0 +1,32 @@
+[package]
+name = "straitjacket"
+version = "0.1.0"
+edition = "2024"
+description = "An opinionated source scanner with deterministic findings for CI."
+license = "MIT"
+
+[[bin]]
+name = "straitjacket"
+path = "src/main.rs"
+
+[lib]
+name = "straitjacket"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+entl-codebase = { git = "https://github.com/PowderworksCode/entl", rev = "39b330db565ae4751c0bcd3394c87b4a65b96a0d" }
+inventory = "0.3"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1.1"
+unic-emoji-char = "0.9"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = true
+strip = true

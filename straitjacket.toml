@@ -1,0 +1,2 @@
+no-comments = true
+file-size-exclude = ["notes/"]
