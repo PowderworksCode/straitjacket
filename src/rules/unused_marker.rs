@@ -21,6 +21,7 @@ inventory::submit! {
     RuleRegistration {
         key: KEY,
         factory: None,
+        repository_factory: None,
         instruction,
     }
 }

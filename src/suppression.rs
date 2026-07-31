@@ -23,6 +23,19 @@ pub struct SuppressionResult {
     pub suppressed: usize,
 }
 
+pub struct SuppressionFile<'a> {
+    pub text: &'a str,
+    pub path: &'a str,
+    pub language: &'a LanguageProfile,
+    pub enabled_rules: &'a HashSet<RuleKey>,
+    pub applicable_rules: &'a HashSet<RuleKey>,
+}
+
+struct FileMarkers<'a> {
+    file: SuppressionFile<'a>,
+    markers: Vec<Marker>,
+}
+
 pub fn apply(
     text: &str,
     path: &str,
@@ -32,60 +45,120 @@ pub fn apply(
     applicable_rules: &HashSet<RuleKey>,
     fail_on_unused: bool,
 ) -> SuppressionResult {
-    let mut markers = collect_markers(text, language);
+    apply_repository(
+        vec![SuppressionFile {
+            text,
+            path,
+            language,
+            enabled_rules,
+            applicable_rules,
+        }],
+        candidates,
+        fail_on_unused,
+    )
+}
+
+pub fn apply_repository(
+    files: Vec<SuppressionFile<'_>>,
+    candidates: Vec<Candidate>,
+    fail_on_unused: bool,
+) -> SuppressionResult {
+    let mut files = files
+        .into_iter()
+        .map(|file| FileMarkers {
+            markers: collect_markers(file.text, file.language),
+            file,
+        })
+        .collect::<Vec<_>>();
     let mut result = SuppressionResult::default();
 
-    if enabled_rules.contains(&rules::NO_COMMENTS) && applicable_rules.contains(&rules::NO_COMMENTS)
-    {
-        for marker in &mut markers {
-            if marker
-                .rule
-                .as_deref()
-                .is_none_or(|rule| rule == rules::NO_COMMENTS.as_str())
-            {
-                marker.used = true;
+    for file in &mut files {
+        if file.file.enabled_rules.contains(&rules::NO_COMMENTS)
+            && file.file.applicable_rules.contains(&rules::NO_COMMENTS)
+        {
+            for marker in &mut file.markers {
+                if marker
+                    .rule
+                    .as_deref()
+                    .is_none_or(|rule| rule == rules::NO_COMMENTS.as_str())
+                {
+                    marker.used = true;
+                }
             }
         }
     }
 
     for candidate in candidates {
         let rule = candidate.finding.rule;
-        let line = candidate.finding.location.line;
-        let chosen = markers
+        let chosen = candidate
+            .suppression_locations
             .iter()
             .enumerate()
-            .filter(|(_, marker)| marker_covers(marker, rule, line, candidate.line_suppressible))
-            .min_by_key(|(_, marker)| marker_priority(marker));
-        if let Some((index, _)) = chosen {
-            markers[index].used = true;
+            .flat_map(|(location_index, location)| {
+                files
+                    .iter()
+                    .enumerate()
+                    .filter(move |(_, file)| file.file.path == location.path)
+                    .flat_map(move |(file_index, file)| {
+                        file.markers
+                            .iter()
+                            .enumerate()
+                            .filter(move |(_, marker)| {
+                                marker_covers(
+                                    marker,
+                                    rule,
+                                    location.line,
+                                    candidate.line_suppressible,
+                                )
+                            })
+                            .map(move |(marker_index, marker)| {
+                                (
+                                    file_index,
+                                    marker_index,
+                                    location_index,
+                                    marker_priority(marker),
+                                )
+                            })
+                    })
+            })
+            .min_by_key(|(_, _, location_index, priority)| (*priority, *location_index));
+        if let Some((file_index, marker_index, _, _)) = chosen {
+            files[file_index].markers[marker_index].used = true;
             result.suppressed += 1;
         } else {
             result.findings.push(candidate.finding);
         }
     }
 
-    if fail_on_unused && language.id != "markdown" {
-        for marker in markers {
-            if marker.used || !eligible(&marker, enabled_rules, applicable_rules) {
+    if fail_on_unused {
+        for file in files {
+            if file.file.language.id == "markdown" {
                 continue;
             }
-            let keyword = if marker.file_level {
-                FILE_MARKER
-            } else {
-                LINE_MARKER
-            };
-            let matched = marker
-                .rule
-                .as_deref()
-                .map(|rule| format!("{keyword}:{rule}"))
-                .unwrap_or_else(|| keyword.to_string());
-            result.findings.push(Finding::new(
-                rules::UNUSED_MARKER,
-                Severity::Error,
-                Location::point(path, marker.line, 1),
-                matched,
-                "suppression marker did not suppress a finding",
-            ));
+            for marker in file.markers {
+                if marker.used
+                    || !eligible(&marker, file.file.enabled_rules, file.file.applicable_rules)
+                {
+                    continue;
+                }
+                let keyword = if marker.file_level {
+                    FILE_MARKER
+                } else {
+                    LINE_MARKER
+                };
+                let matched = marker
+                    .rule
+                    .as_deref()
+                    .map(|rule| format!("{keyword}:{rule}"))
+                    .unwrap_or_else(|| keyword.to_string());
+                result.findings.push(Finding::new(
+                    rules::UNUSED_MARKER,
+                    Severity::Error,
+                    Location::point(file.file.path, marker.line, 1),
+                    matched,
+                    "suppression marker did not suppress a finding",
+                ));
+            }
         }
     }
     result

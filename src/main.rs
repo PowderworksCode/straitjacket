@@ -5,13 +5,21 @@ use std::process::ExitCode;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use entl_codebase::{DiagnosticKind, InventoryOptions, walk};
+use entl_codebase::{DiagnosticKind, InventoryOptions, LanguageProfile, walk};
 
 use straitjacket::config::{self, Settings};
+use straitjacket::facts::FactRuntime;
 use straitjacket::finding::Severity;
 use straitjacket::instructions;
 use straitjacket::report::{self, OutputFormat};
-use straitjacket::{Finding, Scanner};
+use straitjacket::{Finding, PendingFileScan, PendingScan, Scanner};
+
+struct PreparedFile {
+    text: String,
+    path: String,
+    language: &'static LanguageProfile,
+    pending: PendingScan,
+}
 
 #[derive(Debug, Parser)]
 #[command(
@@ -81,6 +89,27 @@ struct Cli {
 enum Command {
     #[command(about = "Print the active repository policy for agents and contributors")]
     Instructions,
+    #[command(about = "Synchronize and inspect locked Infact fact packs")]
+    Facts {
+        #[command(subcommand)]
+        command: FactsCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum FactsCommand {
+    #[command(about = "Resolve configured fact packs into the cache and TOML lock")]
+    Sync {
+        #[arg(long, help = "Verify the lock and cache without registry access")]
+        offline: bool,
+        #[arg(
+            long,
+            help = "Reject missing prebuilt packs instead of generating them"
+        )]
+        prebuilt_only: bool,
+    },
+    #[command(about = "Show locked fact packs and local cache state")]
+    Status,
 }
 
 fn main() -> ExitCode {
@@ -98,12 +127,61 @@ fn run() -> anyhow::Result<ExitCode> {
     let settings = resolve(&cli)?;
     let scanner = Scanner::new(&settings)?;
 
-    if matches!(cli.command, Some(Command::Instructions)) {
-        print!(
-            "{}",
-            instructions::render(&settings, &scanner.enabled_descriptors())?
-        );
-        return Ok(ExitCode::SUCCESS);
+    match &cli.command {
+        Some(Command::Instructions) => {
+            print!(
+                "{}",
+                instructions::render(&settings, &scanner.enabled_descriptors())?
+            );
+            return Ok(ExitCode::SUCCESS);
+        }
+        Some(Command::Facts {
+            command:
+                FactsCommand::Sync {
+                    offline,
+                    prebuilt_only,
+                },
+        }) => {
+            let runtime = tokio::runtime::Runtime::new()?;
+            let synchronized = runtime.block_on(straitjacket::facts::sync(
+                &settings.facts,
+                *offline,
+                *prebuilt_only,
+            ))?;
+            for pack in synchronized.packs {
+                println!(
+                    "{} {} revision {}  {}",
+                    pack.manifest.name,
+                    pack.manifest.subject.version,
+                    pack.manifest.revision,
+                    pack.manifest_digest
+                );
+            }
+            for unavailable in synchronized.unavailable {
+                eprintln!("straitjacket: no prebuilt fact pack for {unavailable}");
+            }
+            return Ok(ExitCode::SUCCESS);
+        }
+        Some(Command::Facts {
+            command: FactsCommand::Status,
+        }) => {
+            for status in straitjacket::facts::status(&settings.facts)? {
+                println!(
+                    "{} {} revision {}  {}  {}{}",
+                    status.name,
+                    status.version,
+                    status.revision,
+                    status.digest,
+                    if status.cached { "cached" } else { "missing" },
+                    status
+                        .origin
+                        .map(|origin| format!("  {origin}"))
+                        .unwrap_or_default()
+                );
+            }
+            return Ok(ExitCode::SUCCESS);
+        }
+        None => {}
     }
 
     if cli.list_rules {
@@ -170,6 +248,7 @@ fn run() -> anyhow::Result<ExitCode> {
             }
         }
 
+        let mut prepared = Vec::new();
         for file in &tree.files {
             if selected_file
                 .as_ref()
@@ -203,10 +282,55 @@ fn run() -> anyhow::Result<ExitCode> {
                 requested.join(&file.path)
             };
             scanned += 1;
-            let result = scanner.scan_language(&source, &display_path(&path), language);
-            suppressed += result.suppressed;
-            findings.extend(result.findings);
+            let path = display_path(&path);
+            let pending = scanner.collect_language(&source, &path, language);
+            prepared.push(PreparedFile {
+                text: source,
+                path,
+                language,
+                pending,
+            });
         }
+
+        let mut repository_candidates = Vec::new();
+        if scanner.has_enabled_repository_rules() {
+            let selection = scanner.analysis_selection();
+            let runtime = FactRuntime::load(&settings.facts, &selection)?;
+            let facts = runtime.analyze(&root, &selection)?;
+            let display_root = if selected_file.is_some() {
+                requested
+                    .parent()
+                    .filter(|parent| !parent.as_os_str().is_empty())
+                    .unwrap_or_else(|| Path::new("."))
+            } else {
+                requested.as_path()
+            };
+            for mut candidate in scanner.repository_candidates(&facts, display_root) {
+                normalize_finding_paths(&mut candidate.finding);
+                for location in &mut candidate.suppression_locations {
+                    location.path = display_path(Path::new(&location.path));
+                }
+                if prepared
+                    .iter()
+                    .any(|file| file.path == candidate.finding.location.path)
+                {
+                    repository_candidates.push(candidate);
+                }
+            }
+        }
+
+        let pending = prepared
+            .iter()
+            .map(|file| PendingFileScan {
+                text: &file.text,
+                path: &file.path,
+                language: file.language,
+                pending: &file.pending,
+            })
+            .collect();
+        let result = scanner.finish_repository(pending, repository_candidates);
+        suppressed += result.suppressed;
+        findings.extend(result.findings);
     }
     findings.sort_by(|left, right| {
         left.location
@@ -286,6 +410,16 @@ fn display_path(path: &Path) -> String {
     value.strip_prefix("./").unwrap_or(&value).to_string()
 }
 
+fn normalize_finding_paths(finding: &mut Finding) {
+    finding.location.path = display_path(Path::new(&finding.location.path));
+    for related in &mut finding.related {
+        related.location.path = display_path(Path::new(&related.location.path));
+    }
+    for evidence in &mut finding.evidence {
+        evidence.location.path = display_path(Path::new(&evidence.location.path));
+    }
+}
+
 fn resolve(cli: &Cli) -> anyhow::Result<Settings> {
     let mut settings = Settings::default();
     if !cli.no_config {
@@ -296,7 +430,11 @@ fn resolve(cli: &Cli) -> anyhow::Result<Settings> {
                 .and_then(|directory| config::find_config(&directory)),
         };
         if let Some(path) = path {
-            settings = settings.apply_file(config::load_config(&path)?);
+            let root = path
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .unwrap_or_else(|| Path::new("."));
+            settings = settings.apply_file_at(config::load_config(&path)?, root);
             eprintln!("straitjacket: using config {}", path.display());
         }
     }

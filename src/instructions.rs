@@ -44,7 +44,8 @@ mod tests {
         assert!(output.contains("Files over 90 lines"));
         assert!(output.contains("outside notes/"));
         assert!(output.contains("deeper than 3 indentation levels"));
-        assert!(output.contains("Source comments are not allowed"));
+        assert!(output.contains("leading 10 lines"));
+        assert!(output.contains("rustdoc and JSDoc"));
         assert!(output.contains("Hardcoded colors are not allowed outside src/theme.css"));
         assert!(!output.contains("emoji"));
         assert!(!output.contains("motion"));

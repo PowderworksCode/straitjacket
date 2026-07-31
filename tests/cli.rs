@@ -1,8 +1,45 @@
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use infact_fact_pack::{FactPackCache, FactPackLock, FactPackManifest, build_oci_layout};
 
 fn binary() -> Command {
     Command::new(env!("CARGO_BIN_EXE_straitjacket"))
+}
+
+fn workspace() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
+}
+
+fn install_pack(cache: &FactPackCache, name: &str) -> infact_fact_pack::CachedFactPack {
+    let root = workspace().join("infact/fact-packs").join(name);
+    let manifest =
+        FactPackManifest::parse(&fs::read_to_string(root.join("pack.toml")).unwrap()).unwrap();
+    let output = tempfile::tempdir().unwrap();
+    let layout = output.path().join("layout");
+    build_oci_layout(&manifest, &root, &layout).unwrap();
+    cache.import_oci_layout(layout).unwrap()
+}
+
+fn build_pack_layout(name: &str, layout: &Path) {
+    let root = workspace().join("infact/fact-packs").join(name);
+    let manifest =
+        FactPackManifest::parse(&fs::read_to_string(root.join("pack.toml")).unwrap()).unwrap();
+    build_oci_layout(&manifest, &root, layout).unwrap();
+}
+
+fn write_fact_config(root: &Path, cache: &Path, lock: &Path) {
+    fs::write(
+        root.join("straitjacket.toml"),
+        format!(
+            "paths = [\"src\"]\n\n[facts]\ncache = {:?}\nlock = {:?}\nparser-paths = [{:?}]\ndependencies = \"none\"\n\n[aspirations]\nlibraries = [\"cargo:itertools@0.15\"]\n",
+            cache,
+            lock,
+            workspace().join("entl/parser-packs")
+        ),
+    )
+    .unwrap();
 }
 
 #[test]
@@ -93,7 +130,8 @@ fn instructions_describe_the_repository_config() {
     assert!(text.contains("Straitjacket repository policy"));
     assert!(text.contains("Files over 90 lines"));
     assert!(text.contains("outside notes/"));
-    assert!(text.contains("Source comments are not allowed"));
+    assert!(text.contains("leading 10 lines"));
+    assert!(text.contains("rustdoc and JSDoc"));
     assert!(!text.contains("emoji"));
     assert!(!text.contains("motion"));
 }
@@ -125,7 +163,7 @@ fn extensionless_scripts_use_entl_language_detection() {
 fn filename_detected_languages_reach_rules_without_an_extension() {
     let directory = tempfile::tempdir().unwrap();
     let dockerfile = directory.path().join("Dockerfile");
-    fs::write(&dockerfile, "# explanation\nFROM scratch\n").unwrap();
+    fs::write(&dockerfile, "FROM scratch\n# explanation\n").unwrap();
 
     let output = binary()
         .args(["--no-config", "--only", "no-comments", "--no-fail"])
@@ -196,5 +234,348 @@ fn directory_scans_inherit_parent_ignores() {
         String::from_utf8(included.stdout)
             .unwrap()
             .contains("[color]")
+    );
+}
+
+#[test]
+fn locked_fact_pack_produces_a_library_opportunity_offline() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("src")).unwrap();
+    fs::write(
+        directory.path().join("src/lib.rs"),
+        "use std::collections::HashMap;\n\npub fn occurrence_counts(values: Vec<String>) -> HashMap<String, usize> {\n    let mut counts = HashMap::<String, usize>::new();\n    for value in values {\n        *counts.entry(value).or_default() += 1;\n    }\n    counts\n}\n",
+    )
+    .unwrap();
+    let cache_path = directory.path().join("cache");
+    let cache = FactPackCache::open(&cache_path).unwrap();
+    let pack = install_pack(&cache, "rust-itertools");
+    let lock_path = directory.path().join("straitjacket.lock.toml");
+    let mut lock = FactPackLock::default();
+    lock.insert(&pack, Some("fixture:rust-itertools".to_owned()))
+        .unwrap();
+    lock.write(&lock_path).unwrap();
+    write_fact_config(directory.path(), &cache_path, &lock_path);
+
+    let status = binary()
+        .args(["facts", "status"])
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert!(status.status.success());
+    assert!(String::from_utf8(status.stdout).unwrap().contains("cached"));
+    let synchronized = binary()
+        .args(["facts", "sync", "--offline"])
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert!(
+        synchronized.status.success(),
+        "{}",
+        String::from_utf8_lossy(&synchronized.stderr)
+    );
+
+    let output = binary().current_dir(directory.path()).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("[library-opportunity]"), "{stdout}");
+    assert!(stdout.contains("itertools::Itertools::counts"), "{stdout}");
+
+    let sarif_path = directory.path().join("facts.sarif");
+    let machine = binary()
+        .args(["--format", "json", "--no-fail", "--sarif"])
+        .arg(&sarif_path)
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert!(machine.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&machine.stdout).unwrap();
+    assert!(
+        json.as_array()
+            .unwrap()
+            .iter()
+            .any(|finding| finding["rule"] == "library-opportunity")
+    );
+    let sarif: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(sarif_path).unwrap()).unwrap();
+    assert!(
+        sarif["runs"][0]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|finding| finding["ruleId"] == "library-opportunity")
+    );
+
+    fs::write(
+        directory.path().join("src/lib.rs"),
+        "// straitjacket-allow-file:library-opportunity\nuse std::collections::HashMap;\n\npub fn occurrence_counts(values: Vec<String>) -> HashMap<String, usize> {\n    let mut counts = HashMap::<String, usize>::new();\n    for value in values {\n        *counts.entry(value).or_default() += 1;\n    }\n    counts\n}\n",
+    )
+    .unwrap();
+    let suppressed = binary().current_dir(directory.path()).output().unwrap();
+    assert!(
+        suppressed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&suppressed.stdout),
+        String::from_utf8_lossy(&suppressed.stderr)
+    );
+}
+
+#[test]
+fn effect_capabilities_distinguish_providers_from_transitive_access() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir_all(directory.path().join("src/adapters")).unwrap();
+    fs::write(
+        directory.path().join("src/adapters/filesystem.rs"),
+        "pub fn load() { let _ = std::fs::read(\"input\"); }\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("src/application.rs"),
+        "pub fn service() { crate::adapters::filesystem::load(); }\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("src/domain.rs"),
+        "pub fn forbidden() { crate::application::service(); }\n",
+    )
+    .unwrap();
+
+    let cache_path = directory.path().join("cache");
+    let cache = FactPackCache::open(&cache_path).unwrap();
+    let pack = install_pack(&cache, "rust-core");
+    let lock_path = directory.path().join("straitjacket.lock.toml");
+    let mut lock = FactPackLock::default();
+    lock.insert(&pack, Some("fixture:rust-core".to_owned()))
+        .unwrap();
+    lock.write(&lock_path).unwrap();
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        format!(
+            "paths=['src']\n\n[facts]\ncache={cache_path:?}\nlock={lock_path:?}\nparser-paths=[{:?}]\ndependencies='none'\n\n[effects]\nunlisted='deny'\nincomplete='error'\n\n[[effects.capabilities]]\nname='filesystem'\nincludes=['file-read', 'file-write']\nprovided-by=['src/adapters/**']\navailable-to=['src/application.rs']\n",
+            workspace().join("entl/parser-packs")
+        ),
+    )
+    .unwrap();
+
+    let output = binary().current_dir(directory.path()).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(stdout.matches("[effect-capability]").count(), 1, "{stdout}");
+    assert!(
+        stdout.contains("src/domain.rs:1:1  [effect-capability]  filesystem"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("filesystem capability is not available to this path"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("std::fs::read"), "{stdout}");
+
+    fs::write(
+        directory.path().join("src/application.rs"),
+        "pub fn misplaced() { let _ = std::fs::read(\"input\"); }\n",
+    )
+    .unwrap();
+    fs::write(directory.path().join("src/domain.rs"), "pub fn pure() {}\n").unwrap();
+    let direct = binary().current_dir(directory.path()).output().unwrap();
+    assert_eq!(direct.status.code(), Some(1));
+    let stdout = String::from_utf8(direct.stdout).unwrap();
+    assert_eq!(stdout.matches("[effect-capability]").count(), 1, "{stdout}");
+    assert!(
+        stdout.contains("filesystem capability is not provided by this path"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn missing_locked_fact_pack_is_an_operational_error() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("src")).unwrap();
+    fs::write(directory.path().join("src/lib.rs"), "pub fn value() {}\n").unwrap();
+    let source_cache = FactPackCache::open(directory.path().join("source-cache")).unwrap();
+    let pack = install_pack(&source_cache, "rust-itertools");
+    let lock_path = directory.path().join("straitjacket.lock.toml");
+    let mut lock = FactPackLock::default();
+    lock.insert(&pack, Some("fixture:rust-itertools".to_owned()))
+        .unwrap();
+    lock.write(&lock_path).unwrap();
+    let missing_cache = directory.path().join("missing-cache");
+    write_fact_config(directory.path(), &missing_cache, &lock_path);
+
+    let output = binary()
+        .args(["facts", "sync", "--offline"])
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("not installed")
+    );
+}
+
+#[test]
+fn instructions_include_enabled_fact_backed_expectations() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        "[facts]\ndependencies='none'\nexact-clones=true\nnear-clones=true\nclone-exclude=['tests/fixtures']\n\n[facts.exact]\nmin-tokens=24\nmin-lines=4\n\n[facts.near]\nmin-tokens=30\nmin-lines=5\nmax-changed-percent=12\n\n[aspirations]\nlibraries=['cargo:itertools@0.15']\n",
+    )
+    .unwrap();
+
+    let output = binary()
+        .arg("instructions")
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("cargo:itertools@0.15"));
+    assert!(text.contains("exact clone of at least 24 tokens"));
+    assert!(text.contains("near clone of at least 30 tokens"));
+    assert!(text.contains("no more than 12% changed tokens"));
+    assert!(text.contains("tests/fixtures"));
+    assert!(text.contains("fact-backed check can complete"));
+}
+
+#[test]
+fn instructions_describe_effect_capabilities() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        "[effects]\nunlisted='deny'\nincomplete='warn'\n\n[[effects.capabilities]]\nname='filesystem'\nincludes=['file-read', 'file-write']\nprovided-by=['src/adapters/filesystem/**']\navailable-to=['src/application/**']\n",
+    )
+    .unwrap();
+
+    let output = binary()
+        .arg("instructions")
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("filesystem provides [file-read, file-write]"));
+    assert!(text.contains("src/adapters/filesystem/**"));
+    assert!(text.contains("src/application/**"));
+    assert!(text.contains("Effects not assigned to a capability are denied"));
+}
+
+#[cfg(unix)]
+#[test]
+fn sync_can_build_a_missing_pack_with_an_explicit_local_builder() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = tempfile::tempdir().unwrap();
+    let source = directory.path().join("source-layout");
+    build_pack_layout("rust-itertools", &source);
+    let builder = directory.path().join("builder.sh");
+    fs::write(
+        &builder,
+        format!(
+            "#!/bin/sh\nfor output do :; done\ncp -R {:?} \"$output\"\n",
+            source
+        ),
+    )
+    .unwrap();
+    let mut permissions = fs::metadata(&builder).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&builder, permissions).unwrap();
+    let cache = directory.path().join("cache");
+    let lock = directory.path().join("straitjacket.lock.toml");
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        format!(
+            "[facts]\ncache={cache:?}\nlock={lock:?}\nregistries=[]\ndependencies='none'\nbuild-missing=true\n\n[[facts.builders]]\necosystem='cargo'\ncommand=[{builder:?}]\n\n[aspirations]\nlibraries=['cargo:itertools@0.15.0']\n"
+        ),
+    )
+    .unwrap();
+
+    let synchronized = binary()
+        .args(["--config", "straitjacket.toml", "facts", "sync"])
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert!(
+        synchronized.status.success(),
+        "{}",
+        String::from_utf8_lossy(&synchronized.stderr)
+    );
+    assert!(
+        String::from_utf8(synchronized.stdout)
+            .unwrap()
+            .contains("rust-itertools")
+    );
+    let offline = binary()
+        .args([
+            "--config",
+            "straitjacket.toml",
+            "facts",
+            "sync",
+            "--offline",
+        ])
+        .current_dir(directory.path())
+        .output()
+        .unwrap();
+    assert!(offline.status.success());
+}
+
+#[test]
+fn exact_clone_can_be_suppressed_from_either_location() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("src")).unwrap();
+    let source = "pub fn total(values: &[u32]) -> u32 {\n    let mut sum = 0;\n    for value in values {\n        sum += value;\n    }\n    sum\n}\n";
+    fs::write(directory.path().join("src/a.rs"), source).unwrap();
+    fs::write(directory.path().join("src/b.rs"), source).unwrap();
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        format!(
+            "paths = [\"src\"]\n\n[facts]\nparser-paths = [{:?}]\ndependencies = \"none\"\nexact-clones = true\n\n[facts.exact]\nmin-tokens = 8\nmin-lines = 2\n",
+            workspace().join("entl/parser-packs")
+        ),
+    )
+    .unwrap();
+
+    let output = binary().current_dir(directory.path()).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("[exact-clone]"), "{stdout}");
+    assert!(stdout.contains("related: src/b.rs"), "{stdout}");
+
+    fs::write(
+        directory.path().join("src/b.rs"),
+        format!("// straitjacket-allow-file:exact-clone\n{source}"),
+    )
+    .unwrap();
+    let suppressed = binary().current_dir(directory.path()).output().unwrap();
+    assert!(
+        suppressed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&suppressed.stdout),
+        String::from_utf8_lossy(&suppressed.stderr)
+    );
+}
+
+#[test]
+fn clone_exclusions_scope_repository_rules() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("fixtures")).unwrap();
+    let source = "pub fn total(values: &[u32]) -> u32 {\n    let mut sum = 0;\n    for value in values {\n        sum += value;\n    }\n    sum\n}\n";
+    fs::write(directory.path().join("fixtures/a.rs"), source).unwrap();
+    fs::write(directory.path().join("fixtures/b.rs"), source).unwrap();
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        format!(
+            "[facts]\nparser-paths=[{:?}]\ndependencies='none'\nexact-clones=true\nclone-exclude=['fixtures']\n\n[facts.exact]\nmin-tokens=8\nmin-lines=2\n",
+            workspace().join("entl/parser-packs")
+        ),
+    )
+    .unwrap();
+
+    let output = binary().current_dir(directory.path()).output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
     );
 }

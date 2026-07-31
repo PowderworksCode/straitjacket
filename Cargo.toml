@@ -16,12 +16,23 @@ path = "src/lib.rs"
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
-entl-codebase = { git = "https://github.com/PowderworksCode/entl", rev = "39b330db565ae4751c0bcd3394c87b4a65b96a0d" }
+directories = "6"
+entl-codebase = { path = "../entl/crates/entl-codebase" }
+entl-tree-sitter = { path = "../entl/crates/entl-tree-sitter" }
+globset = "0.4"
+infact-analysis = { path = "../infact/crates/infact-analysis" }
+infact-core = { path = "../infact/crates/infact-core" }
+infact-duplication = { path = "../infact/crates/infact-duplication" }
+infact-fact-builder = { path = "../infact/crates/infact-fact-builder" }
+infact-fact-pack = { path = "../infact/crates/infact-fact-pack" }
+infact-fact-registry = { path = "../infact/crates/infact-fact-registry" }
 inventory = "0.3"
 regex = "1"
+semver = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "1.1"
+tokio = { version = "1", features = ["rt-multi-thread"] }
 unic-emoji-char = "0.9"
 
 [dev-dependencies]

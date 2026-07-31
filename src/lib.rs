@@ -1,4 +1,5 @@
 pub mod config;
+pub mod facts;
 pub mod finding;
 pub mod instructions;
 pub mod report;
@@ -11,4 +12,4 @@ pub use config::{FileConfig, Settings};
 pub use finding::{EvidenceStep, Finding, Location, RelatedLocation, Severity};
 pub use rule::{Candidate, FileRule, RuleDescriptor, SourceFile};
 pub use rules::RuleKey;
-pub use scanner::{ScanResult, Scanner};
+pub use scanner::{PendingFileScan, PendingScan, ScanResult, Scanner};
