@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use straitjacket::{RuleKey, Scanner, Settings};
 
 fn scanner(only: &[&str]) -> Scanner {

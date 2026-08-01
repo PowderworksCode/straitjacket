@@ -2445,10 +2445,13 @@ dependencies = [
  "entl-tree-sitter",
  "heck 0.5.0",
  "infact-core",
+ "infact-fact-pack",
  "infact-normalize",
  "infact-rust-normalize",
  "serde",
+ "serde_json",
  "sha2 0.10.9",
+ "tempfile",
  "thiserror 2.0.19",
  "tree-sitter",
 ]

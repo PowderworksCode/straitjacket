@@ -71,14 +71,31 @@ impl RepositoryRule for LibraryOpportunityRule {
                 1,
             );
             location.end_line = Some(span.end_line as usize);
-            let mut finding = Finding::new(
-                KEY,
-                Severity::Error,
-                location,
-                target,
-                format!("local implementation matches {target}"),
-            );
-            finding.help = Some(format!("use {target}"));
+            // A fused match is a weaker claim: the behavior is here, but so is
+            // other work, so swapping in the library call is not mechanical.
+            let finding = if fact.value.fused {
+                let mut finding = Finding::new(
+                    KEY,
+                    Severity::Warning,
+                    location,
+                    target,
+                    format!("local implementation performs {target} alongside other work"),
+                );
+                finding.help = Some(format!(
+                    "consider separating {target} from the rest of the loop"
+                ));
+                finding
+            } else {
+                let mut finding = Finding::new(
+                    KEY,
+                    Severity::Error,
+                    location,
+                    target,
+                    format!("local implementation matches {target}"),
+                );
+                finding.help = Some(format!("use {target}"));
+                finding
+            };
             candidates.push(Candidate::line(finding));
         }
     }

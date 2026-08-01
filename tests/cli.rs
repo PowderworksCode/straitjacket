@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -661,6 +662,12 @@ fn observations_reveal_an_effect_that_syntax_resolution_cannot_see() {
         !stdout.contains("[effect-capability]"),
         "syntax should see nothing here, which is exactly the problem: {stdout}"
     );
+    // and the run must say so, or a clean report looks like a real answer
+    let stderr = String::from_utf8(syntax.stderr).unwrap();
+    assert!(
+        stderr.contains("resolved from syntax"),
+        "a syntax-resolved run should disclose it: {stderr}"
+    );
 
     // the same scan, given what the compiler already resolved
     fs::write(
@@ -683,5 +690,11 @@ fn observations_reveal_an_effect_that_syntax_resolution_cannot_see() {
     assert!(
         !stdout.contains("src/adapters/filesystem.rs"),
         "the adapter provides the capability: {stdout}"
+    );
+    // a resolved run makes no such disclaimer, because it has no need of one
+    let stderr = String::from_utf8(observed.stderr).unwrap();
+    assert!(
+        !stderr.contains("resolved from syntax"),
+        "observations were used, so nothing should be disclaimed: {stderr}"
     );
 }

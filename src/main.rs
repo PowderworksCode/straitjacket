@@ -7,6 +7,7 @@ use anyhow::Context;
 use clap::{Parser, Subcommand};
 use entl_codebase::{DiagnosticKind, InventoryOptions, LanguageProfile, walk};
 
+use infact_analysis::EffectResolution;
 use straitjacket::config::{self, Settings};
 use straitjacket::facts::FactRuntime;
 use straitjacket::finding::Severity;
@@ -199,6 +200,9 @@ fn run() -> anyhow::Result<ExitCode> {
     let mut findings = Vec::<Finding>::new();
     let mut scanned = 0usize;
     let mut suppressed = 0usize;
+    // how the effect graph was resolved, so the summary can say what a clean
+    // report is worth
+    let mut effect_resolution = EffectResolution::None;
     let mut seen = BTreeSet::new();
     for requested in &settings.paths {
         let (root, selected_file) = scan_root(requested)?;
@@ -297,6 +301,7 @@ fn run() -> anyhow::Result<ExitCode> {
             let selection = scanner.analysis_selection();
             let runtime = FactRuntime::load(&settings.facts, &selection)?;
             let facts = runtime.analyze(&root, &selection)?;
+            effect_resolution = facts.effect_resolution;
             let display_root = if selected_file.is_some() {
                 requested
                     .parent()
@@ -363,6 +368,15 @@ fn run() -> anyhow::Result<ExitCode> {
             .with_context(|| format!("writing SARIF report to {}", path.display()))?;
     }
 
+    // A report with no effect findings means one thing when calls were resolved
+    // and something much weaker when they were guessed, and nothing in the
+    // findings themselves says which. This is most worth saying when the report
+    // is clean, so it is not tied to having found anything.
+    if settings.format == OutputFormat::Text && effect_resolution == EffectResolution::Syntax {
+        eprintln!(
+            "straitjacket: effects were resolved from syntax, which cannot follow a call written through an import; supply [facts].observations for a complete answer"
+        );
+    }
     if settings.format == OutputFormat::Text && !findings.is_empty() {
         let errors = findings
             .iter()

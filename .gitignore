@@ -1,2 +1,3 @@
-/target
+# any Cargo target directory, at any depth, so a nested workspace is covered
+target/
 
