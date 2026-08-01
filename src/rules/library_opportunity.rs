@@ -71,8 +71,6 @@ impl RepositoryRule for LibraryOpportunityRule {
                 1,
             );
             location.end_line = Some(span.end_line as usize);
-            // A fused match is a weaker claim: the behavior is here, but so is
-            // other work, so swapping in the library call is not mechanical.
             let finding = if fact.value.fused {
                 let mut finding = Finding::new(
                     KEY,

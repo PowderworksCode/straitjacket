@@ -2369,6 +2369,7 @@ dependencies = [
  "infact-fact-pack",
  "infact-rust-behaviors",
  "infact-rust-effects",
+ "infact-rust-errors",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
@@ -2471,6 +2472,17 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
+ "thiserror 2.0.19",
+ "tree-sitter",
+]
+
+[[package]]
+name = "infact-rust-errors"
+version = "0.0.0"
+dependencies = [
+ "entl-tree-sitter",
+ "infact-core",
+ "sha2 0.10.9",
  "thiserror 2.0.19",
  "tree-sitter",
 ]

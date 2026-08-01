@@ -5,7 +5,7 @@ use std::process::ExitCode;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use entl_codebase::{DiagnosticKind, InventoryOptions, LanguageProfile, walk};
+use entl_codebase::{InventoryOptions, LanguageProfile, walk};
 
 use infact_analysis::EffectResolution;
 use straitjacket::config::{self, Settings};
@@ -200,8 +200,6 @@ fn run() -> anyhow::Result<ExitCode> {
     let mut findings = Vec::<Finding>::new();
     let mut scanned = 0usize;
     let mut suppressed = 0usize;
-    // how the effect graph was resolved, so the summary can say what a clean
-    // report is worth
     let mut effect_resolution = EffectResolution::None;
     let mut seen = BTreeSet::new();
     for requested in &settings.paths {
@@ -217,18 +215,8 @@ fn run() -> anyhow::Result<ExitCode> {
                 ..InventoryOptions::default()
             },
         )?;
-        if selected_file.is_none()
-            && let Some(diagnostic) = tree
-                .diagnostics
-                .iter()
-                .find(|diagnostic| diagnostic.kind == DiagnosticKind::Walk)
-        {
-            anyhow::bail!(
-                "walking {} at {}: {}",
-                requested.display(),
-                diagnostic.path.display(),
-                diagnostic.message
-            );
+        if selected_file.is_none() {
+            reject_incomplete_inventory(&tree, requested)?;
         }
         if let Some(selected) = &selected_file {
             let selected_entry = tree.file(selected).ok_or_else(|| {
@@ -368,14 +356,8 @@ fn run() -> anyhow::Result<ExitCode> {
             .with_context(|| format!("writing SARIF report to {}", path.display()))?;
     }
 
-    // A report with no effect findings means one thing when calls were resolved
-    // and something much weaker when they were guessed, and nothing in the
-    // findings themselves says which. This is most worth saying when the report
-    // is clean, so it is not tied to having found anything.
-    if settings.format == OutputFormat::Text && effect_resolution == EffectResolution::Syntax {
-        eprintln!(
-            "straitjacket: effects were resolved from syntax, which cannot follow a call written through an import; supply [facts].observations for a complete answer"
-        );
+    if settings.format == OutputFormat::Text {
+        disclose_effect_resolution(effect_resolution);
     }
     if settings.format == OutputFormat::Text && !findings.is_empty() {
         let errors = findings
@@ -434,14 +416,57 @@ fn normalize_finding_paths(finding: &mut Finding) {
     }
 }
 
+/// Say when a clean effect report is a weaker claim than it looks.
+///
+/// A report with no effect findings means one thing when calls were resolved
+/// and something much weaker when they were guessed, and nothing in the
+/// findings themselves says which. This is most worth saying when the report is
+/// clean, so it is not tied to having found anything.
+fn disclose_effect_resolution(resolution: EffectResolution) {
+    if resolution != EffectResolution::Syntax {
+        return;
+    }
+    eprintln!(
+        "straitjacket: effects were resolved from syntax, which cannot follow a call written through an import; supply [facts].observations for a complete answer"
+    );
+}
+
+/// Refuse to scan a tree Entl could not fully read.
+///
+/// Entl records what it could not read, and every kind is escalated, not just
+/// walk failures: an unreadable manifest silently shrinks the package,
+/// workspace, and ecosystem facts that rules are scoped by, and a scan over
+/// less than the repository must not be able to report clean.
+fn reject_incomplete_inventory(
+    tree: &entl_codebase::CodebaseTree,
+    requested: &Path,
+) -> anyhow::Result<()> {
+    let Some(diagnostic) = tree.diagnostics.first() else {
+        return Ok(());
+    };
+    anyhow::bail!(
+        "inspecting {} at {}: {} ({:?})",
+        requested.display(),
+        diagnostic.path.display(),
+        diagnostic.message,
+        diagnostic.kind
+    )
+}
+
+/// Build the settings for this run from the CLI and any checked-in config.
+///
+/// An unreadable working directory would otherwise skip discovery and scan
+/// with default policy, which looks exactly like a clean repository that
+/// configured nothing.
 fn resolve(cli: &Cli) -> anyhow::Result<Settings> {
     let mut settings = Settings::default();
     if !cli.no_config {
         let path = match &cli.config {
             Some(path) => Some(path.clone()),
-            None => std::env::current_dir()
-                .ok()
-                .and_then(|directory| config::find_config(&directory)),
+            None => config::find_config(
+                &std::env::current_dir()
+                    .context("reading the working directory to discover straitjacket.toml")?,
+            ),
         };
         if let Some(path) = path {
             let root = path

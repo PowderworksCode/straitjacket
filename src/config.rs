@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use directories::ProjectDirs;
 use globset::Glob;
-use infact_core::Effect;
+use infact_core::{DiscardForm, Effect};
 use infact_duplication::{ExactConfig, NearConfig};
 use serde::Deserialize;
 
@@ -87,6 +87,105 @@ pub struct EffectCapability {
     pub available_to: Vec<String>,
 }
 
+/// Which discarded-error forms a repository refuses to carry.
+///
+/// The analyzer reports every form it can see. This decides which ones are
+/// findings, because a repository that returns `Option` on purpose and one
+/// that meant to return `Result` look identical in syntax.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct ErrorSettings {
+    /// Forms that are findings wherever they appear.
+    #[serde(default = "default_denied_forms")]
+    pub deny: Vec<DiscardForm>,
+    /// Whether to report forms that syntax cannot prove are `Result`.
+    #[serde(default)]
+    pub ambiguous: AmbiguousPolicy,
+    /// Whether a discard inside a test is a finding.
+    #[serde(default)]
+    pub tests: TestPolicy,
+    /// Paths permitted to discard, such as a top-level reporter.
+    #[serde(default)]
+    pub allowed_in: Vec<String>,
+}
+
+fn default_denied_forms() -> Vec<DiscardForm> {
+    vec![
+        DiscardForm::LetUnderscore,
+        DiscardForm::OkDiscard,
+        DiscardForm::ErrArm,
+        DiscardForm::OkBinding,
+        DiscardForm::IteratorDrop,
+    ]
+}
+
+impl Default for ErrorSettings {
+    fn default() -> Self {
+        Self {
+            deny: default_denied_forms(),
+            ambiguous: AmbiguousPolicy::default(),
+            tests: TestPolicy::default(),
+            allowed_in: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AmbiguousPolicy {
+    /// Report only forms that name `Result`, `Ok`, or `Err`.
+    #[default]
+    Skip,
+    /// Report forms that read the same on `Option`, as warnings.
+    Warn,
+    /// Treat an unresolved receiver as a discard.
+    Error,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TestPolicy {
+    #[default]
+    Ignore,
+    Warn,
+    Error,
+}
+
+/// A callable past which an effect may not travel.
+///
+/// A capability answers where an effect may live, which is a question about
+/// paths. This answers what one callable may reach, which is a question about
+/// the call graph, and no arrangement of files settles it: a hot loop may call
+/// anything in the repository and still must not allocate.
+///
+/// The barrier is declared in source rather than in configuration because the
+/// callable is what carries it. A path pattern goes stale the moment the
+/// function moves; a comment on the function does not.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct EffectBarrier {
+    /// The barrier's name, which names its marker: a barrier named `hot-loop`
+    /// is declared on a callable by a `barrier:hot-loop` comment, spelled in
+    /// full by [`EffectBarrier::marker`].
+    pub name: String,
+    /// Effects that may not be reached from a callable carrying the marker,
+    /// directly or through any call below it.
+    #[serde(default)]
+    pub denies: Vec<Effect>,
+}
+
+impl EffectBarrier {
+    /// The comment that puts this barrier on a callable.
+    ///
+    /// Barriers share the directive namespace with suppression, so the name
+    /// goes after `barrier:` rather than directly after `straitjacket-`. A
+    /// barrier called `allow` would otherwise mint `straitjacket-allow` and
+    /// collide with every suppression marker in the repository.
+    pub fn marker(&self) -> String {
+        format!("straitjacket-barrier:{}", self.name) // straitjacket-allow:unknown-barrier — this builds the marker
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct EffectSettings {
@@ -96,6 +195,8 @@ pub struct EffectSettings {
     pub incomplete: IncompleteEffectPolicy,
     #[serde(default)]
     pub capabilities: Vec<EffectCapability>,
+    #[serde(default)]
+    pub barriers: Vec<EffectBarrier>,
 }
 
 impl Default for EffectSettings {
@@ -104,6 +205,7 @@ impl Default for EffectSettings {
             unlisted: UnlistedEffectPolicy::Deny,
             incomplete: IncompleteEffectPolicy::Error,
             capabilities: Vec::new(),
+            barriers: Vec::new(),
         }
     }
 }
@@ -166,6 +268,7 @@ pub struct FileConfig {
     #[serde(default)]
     pub facts: FactFileConfig,
     pub effects: Option<EffectSettings>,
+    pub errors: Option<ErrorSettings>,
 }
 
 #[derive(Debug, Clone)]
@@ -187,6 +290,7 @@ pub struct Settings {
     pub fail_on_unused_markers: bool,
     pub facts: FactSettings,
     pub effects: Option<EffectSettings>,
+    pub errors: Option<ErrorSettings>,
 }
 
 impl Default for Settings {
@@ -225,6 +329,7 @@ impl Default for Settings {
                 require_call_effects: false,
             },
             effects: None,
+            errors: None,
         }
     }
 }
@@ -349,10 +454,25 @@ impl Settings {
         };
         self.effects = file.effects;
         self.facts.require_call_effects = self.effects.is_some();
+        self.errors = file.errors;
         self
     }
 
+    /// Reject a configuration that would scan less than it appears to.
+    ///
+    /// A lock that will not parse otherwise reads as "no packs", which
+    /// silently turns every fact-backed rule into a no-op, so it is read once
+    /// here, where the failure can still stop the run.
     pub fn validate(&self) -> anyhow::Result<()> {
+        infact_fact_pack::FactPackLock::read_or_default(&self.facts.lock)
+            .with_context(|| format!("reading fact lock {}", self.facts.lock.display()))?;
+        if let Some(errors) = &self.errors {
+            for pattern in &errors.allowed_in {
+                Glob::new(pattern).with_context(|| {
+                    format!("invalid path pattern `{pattern}` in [errors].allowed-in")
+                })?;
+            }
+        }
         let Some(effects) = &self.effects else {
             return Ok(());
         };
@@ -397,6 +517,27 @@ impl Settings {
                         capability.name
                     )
                 })?;
+            }
+        }
+        let mut barriers = std::collections::BTreeSet::new();
+        for barrier in &effects.barriers {
+            let name = barrier.name.trim();
+            if name.is_empty() {
+                anyhow::bail!("effect barrier name cannot be empty");
+            }
+            if !name
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            {
+                anyhow::bail!(
+                    "effect barrier `{name}` must use lowercase letters, digits, and dashes, because the name is also its source marker"
+                );
+            }
+            if !barriers.insert(name) {
+                anyhow::bail!("duplicate effect barrier `{name}`");
+            }
+            if barrier.denies.is_empty() {
+                anyhow::bail!("effect barrier `{name}` must deny at least one effect");
             }
         }
         Ok(())

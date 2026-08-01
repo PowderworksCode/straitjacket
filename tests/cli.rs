@@ -387,6 +387,139 @@ fn effect_capabilities_distinguish_providers_from_transitive_access() {
     );
 }
 
+/// A barrier reaches through calls and files, and nothing else answers for it.
+///
+/// The allocation is two calls below the marker and in another file, so a rule
+/// reading only the marked callable's own body would miss it. `cold.rs` carries
+/// the same marker over a callable that reaches nothing, which has nothing to
+/// report.
+#[test]
+fn an_effect_barrier_denies_what_a_marked_callable_reaches() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir_all(directory.path().join("src")).unwrap();
+    fs::write(
+        directory.path().join("src/support.rs"),
+        "pub fn render() -> String {\n    format!(\"frame\")\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("src/hot.rs"),
+        "// straitjacket-barrier:hot-loop\npub fn tick() -> String {\n    crate::support::render()\n}\n", // straitjacket-allow:unknown-barrier — fixture
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("src/cold.rs"),
+        "// straitjacket-barrier:hot-loop\npub fn idle() -> usize {\n    7\n}\n", // straitjacket-allow:unknown-barrier — fixture
+    )
+    .unwrap();
+
+    let cache_path = directory.path().join("cache");
+    let cache = FactPackCache::open(&cache_path).unwrap();
+    let pack = install_pack(&cache, "rust-core");
+    let lock_path = directory.path().join("straitjacket.lock.toml");
+    let mut lock = FactPackLock::default();
+    lock.insert(&pack, Some("fixture:rust-core".to_owned()))
+        .unwrap();
+    lock.write(&lock_path).unwrap();
+    let config = format!(
+        "paths=['src']\n\n[facts]\ncache={cache_path:?}\nlock={lock_path:?}\nparser-paths=[{:?}]\ndependencies='none'\n\n[effects]\nunlisted='allow'\nincomplete='ignore'\n\n[[effects.barriers]]\nname='hot-loop'\ndenies=['allocate']\n",
+        workspace().join("entl/parser-packs")
+    );
+    fs::write(directory.path().join("straitjacket.toml"), &config).unwrap();
+
+    let output = binary().current_dir(directory.path()).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(
+        stdout.matches("[effect-barrier]").count(),
+        1,
+        "only the marked callable answers for it, not every caller on the way: {stdout}"
+    );
+    assert!(
+        stdout.contains("src/support.rs:2:1  [effect-barrier]  hot-loop"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("allocate effect is denied below the hot-loop barrier"),
+        "{stdout}"
+    );
+
+    fs::write(
+        directory.path().join("src/hot.rs"),
+        "pub fn tick() -> String {\n    crate::support::render()\n}\n",
+    )
+    .unwrap();
+    let cleared = binary().current_dir(directory.path()).output().unwrap();
+    let stdout = String::from_utf8(cleared.stdout).unwrap();
+    assert!(
+        !stdout.contains("[effect-barrier]"),
+        "the marker is the barrier, so removing it removes the finding: {stdout}"
+    );
+    assert_eq!(cleared.status.code(), Some(0), "{stdout}");
+}
+
+/// A barrier that forbids nothing must say so rather than pass quietly.
+#[test]
+fn a_barrier_marker_naming_no_barrier_is_reported() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir_all(directory.path().join("src")).unwrap();
+    fs::write(
+        directory.path().join("src/hot.rs"),
+        "// straitjacket-barrier:hot-lop\npub fn tick() -> String {\n    format!(\"frame\")\n}\n", // straitjacket-allow:unknown-barrier — fixture
+    )
+    .unwrap();
+
+    let cache_path = directory.path().join("cache");
+    let cache = FactPackCache::open(&cache_path).unwrap();
+    let pack = install_pack(&cache, "rust-core");
+    let lock_path = directory.path().join("straitjacket.lock.toml");
+    let mut lock = FactPackLock::default();
+    lock.insert(&pack, Some("fixture:rust-core".to_owned()))
+        .unwrap();
+    lock.write(&lock_path).unwrap();
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        format!(
+            "paths=['src']\n\n[facts]\ncache={cache_path:?}\nlock={lock_path:?}\nparser-paths=[{:?}]\ndependencies='none'\n\n[effects]\nunlisted='allow'\nincomplete='ignore'\n\n[[effects.barriers]]\nname='hot-loop'\ndenies=['allocate']\n",
+            workspace().join("entl/parser-packs")
+        ),
+    )
+    .unwrap();
+
+    let output = binary().current_dir(directory.path()).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(
+        stdout.contains("src/hot.rs:1:4  [unknown-barrier]"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("`hot-lop` is not a configured effect barrier"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("name one of hot-loop"),
+        "the help has to name what was meant: {stdout}"
+    );
+    assert!(
+        !stdout.contains("[effect-barrier]"),
+        "a misspelled marker forbids nothing, which is the whole problem: {stdout}"
+    );
+
+    fs::write(
+        directory.path().join("src/hot.rs"),
+        "// straitjacket-barrier:hot-loop\npub fn tick() -> String {\n    format!(\"frame\")\n}\n", // straitjacket-allow:unknown-barrier — fixture
+    )
+    .unwrap();
+    let corrected = binary().current_dir(directory.path()).output().unwrap();
+    let stdout = String::from_utf8(corrected.stdout).unwrap();
+    assert!(!stdout.contains("[unknown-barrier]"), "{stdout}");
+    assert!(
+        stdout.contains("[effect-barrier]"),
+        "spelled right, the barrier bites: {stdout}"
+    );
+}
+
 #[test]
 fn missing_locked_fact_pack_is_an_operational_error() {
     let directory = tempfile::tempdir().unwrap();
@@ -654,7 +787,6 @@ fn observations_reveal_an_effect_that_syntax_resolution_cannot_see() {
         )
     };
 
-    // syntax resolution cannot follow `use std::fs; fs::read(..)`
     fs::write(directory.path().join("straitjacket.toml"), config(None)).unwrap();
     let syntax = binary().current_dir(directory.path()).output().unwrap();
     let stdout = String::from_utf8(syntax.stdout).unwrap();
@@ -662,14 +794,13 @@ fn observations_reveal_an_effect_that_syntax_resolution_cannot_see() {
         !stdout.contains("[effect-capability]"),
         "syntax should see nothing here, which is exactly the problem: {stdout}"
     );
-    // and the run must say so, or a clean report looks like a real answer
     let stderr = String::from_utf8(syntax.stderr).unwrap();
     assert!(
         stderr.contains("resolved from syntax"),
-        "a syntax-resolved run should disclose it: {stderr}"
+        "syntax cannot follow `use std::fs; fs::read(..)`, and the run must say so, \
+         or a clean report looks like a real answer: {stderr}"
     );
 
-    // the same scan, given what the compiler already resolved
     fs::write(
         directory.path().join("straitjacket.toml"),
         config(Some(&observations)),
@@ -686,15 +817,154 @@ fn observations_reveal_an_effect_that_syntax_resolution_cannot_see() {
         stdout.contains("filesystem capability is not provided by this path"),
         "{stdout}"
     );
-    // the provider is allowed to do exactly this, so it must stay clean
     assert!(
         !stdout.contains("src/adapters/filesystem.rs"),
-        "the adapter provides the capability: {stdout}"
+        "the adapter provides the capability, so doing exactly this is allowed: {stdout}"
     );
-    // a resolved run makes no such disclaimer, because it has no need of one
     let stderr = String::from_utf8(observed.stderr).unwrap();
     assert!(
         !stderr.contains("resolved from syntax"),
         "observations were used, so nothing should be disclaimed: {stderr}"
+    );
+}
+
+/// A failure that cannot reach a caller is the thing this rule exists to find.
+///
+/// The fixture pairs each discarding form with a handled equivalent, so a pass
+/// means the rule separated them rather than flagging everything fallible.
+#[test]
+fn error_discard_reports_failures_that_cannot_reach_a_caller() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir_all(directory.path().join("src")).unwrap();
+    fs::write(
+        directory.path().join("src/lib.rs"),
+        "fn write_observations(data: &[u8]) {\n    \
+             let _ = std::fs::write(\"out.json\", data);\n}\n\n\
+         fn load(path: &str) -> Option<String> {\n    \
+             std::fs::read_to_string(path).ok()\n}\n\n\
+         fn propagates(path: &str) -> std::io::Result<String> {\n    \
+             std::fs::read_to_string(path)\n}\n\n\
+         fn handles(path: &str) {\n    \
+             match std::fs::read_to_string(path) {\n        \
+                 Ok(text) => println!(\"{text}\"),\n        \
+                 Err(error) => eprintln!(\"{error}\"),\n    }\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        format!(
+            "paths = [\"src\"]\nonly = [\"error-discard\"]\n\n[facts]\nparser-paths = [{:?}]\ndependencies = \"none\"\n\n[errors]\n",
+            workspace().join("entl/parser-packs")
+        ),
+    )
+    .unwrap();
+
+    let output = binary().current_dir(directory.path()).output().unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(output.status.code(), Some(1), "{stdout}");
+
+    assert!(
+        stdout.contains("src/lib.rs:2:5") && stdout.contains("let-underscore"),
+        "the discard that cannot leave its callable at all: {stdout}"
+    );
+    assert!(
+        stdout.contains("write_observations returns no error type"),
+        "the report has to say why the error had nowhere to go: {stdout}"
+    );
+    assert!(
+        stdout.contains("src/lib.rs:6:5") && stdout.contains("ok-discard"),
+        "the discard that downgrades a cause into an absence: {stdout}"
+    );
+
+    assert!(
+        !stdout.contains("src/lib.rs:10") && !stdout.contains("src/lib.rs:14"),
+        "propagated and handled errors must not be reported: {stdout}"
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("2 error(s)"), "{stderr}");
+}
+
+/// `.unwrap_or_default()` reads the same on `Option`, so it is opt-in.
+#[test]
+fn error_discard_leaves_ambiguous_forms_to_the_repository() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir_all(directory.path().join("src")).unwrap();
+    fs::write(
+        directory.path().join("src/lib.rs"),
+        "fn render(value: &Value) -> String {\n    \
+             serde_json::to_string(value).unwrap_or_default()\n}\n",
+    )
+    .unwrap();
+    let config = |body: &str| {
+        format!(
+            "paths = [\"src\"]\nonly = [\"error-discard\"]\n\n[facts]\nparser-paths = [{:?}]\ndependencies = \"none\"\n\n[errors]\n{body}",
+            workspace().join("entl/parser-packs")
+        )
+    };
+
+    fs::write(directory.path().join("straitjacket.toml"), config("")).unwrap();
+    let default = binary().current_dir(directory.path()).output().unwrap();
+    assert_eq!(
+        default.status.code(),
+        Some(0),
+        "the default keeps quiet, because syntax cannot prove this is a Result"
+    );
+
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        config("deny = [\"unwrap-or\"]\nambiguous = \"warn\"\n"),
+    )
+    .unwrap();
+    let asked = binary().current_dir(directory.path()).output().unwrap();
+    let stdout = String::from_utf8(asked.stdout).unwrap();
+    let stderr = String::from_utf8(asked.stderr).unwrap();
+    assert!(stdout.contains("unwrap-or"), "{stdout}");
+    assert!(stderr.contains("1 warning(s)"), "{stderr}");
+}
+
+/// The local signature cannot say whether ANY caller could have been told.
+///
+/// The two discards here are identical in form and both sit in an infallible
+/// callable. Only the call graph separates them, so a pass means reach was
+/// resolved rather than guessed from the signature.
+#[test]
+fn error_discard_traces_a_failure_up_to_the_callers() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir_all(directory.path().join("src")).unwrap();
+    fs::write(
+        directory.path().join("src/lib.rs"),
+        "fn run() -> Result<(), Error> {\n    analyze();\n    Ok(())\n}\n\n\
+         fn analyze() {\n    reported();\n}\n\n\
+         fn reported() {\n    let _ = std::fs::write(\"a\", b\"x\");\n}\n\n\
+         fn top() {\n    middle();\n}\n\n\
+         fn middle() {\n    sealed();\n}\n\n\
+         fn sealed() {\n    let _ = std::fs::write(\"b\", b\"y\");\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        format!(
+            "paths = [\"src\"]\nonly = [\"error-discard\"]\n\n[facts]\nparser-paths = [{:?}]\ndependencies = \"none\"\n\n[errors]\n",
+            workspace().join("entl/parser-packs")
+        ),
+    )
+    .unwrap();
+
+    let output = binary().current_dir(directory.path()).output().unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(output.status.code(), Some(1), "{stdout}");
+
+    assert!(
+        stdout.contains("crate::reported cannot report it, but crate::run above returns `Result`"),
+        "a fallible ancestor exists, so the fix is to propagate to it: {stdout}"
+    );
+    assert!(
+        stdout.contains("no caller from crate::top down to crate::sealed can report a failure"),
+        "the whole chain is infallible, so no caller can ever learn of it: {stdout}"
+    );
+    assert!(
+        stdout.contains("crate::run calls crate::analyze")
+            && stdout.contains("crate::middle calls crate::sealed"),
+        "the trace names the calls that carried it: {stdout}"
     );
 }

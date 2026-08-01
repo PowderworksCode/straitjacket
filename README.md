@@ -31,6 +31,9 @@ language frontend lives in Straitjacket.
 | `near-clone` | Opt-in clone detection with configured identifier and literal normalization. |
 | `library-opportunity` | Flags local behavior equivalent to an API in a library the repository already depends on. |
 | `effect-capability` | Enforces direct providers and permitted transitive access for configured effects. |
+| `effect-barrier` | Flags an effect reached from a callable whose source marker forbids it, however deep the call. |
+| `unknown-barrier` | Flags a barrier marker that names no configured barrier, and so forbids nothing. |
+| `error-discard` | Flags a fallible expression whose error is dropped instead of returned to the caller. |
 | `analysis-incomplete` | Flags files that an enabled fact-backed analysis could not inspect. |
 
 ## Usage
@@ -125,6 +128,16 @@ name = "filesystem"
 includes = ["file-read", "file-write"]
 provided-by = ["src/adapters/filesystem/**"]
 available-to = ["src/application/**", "src/bin/**"]
+
+[[effects.barriers]]
+name = "hot-loop"
+denies = ["allocate", "block", "file-read", "file-write", "network"]
+
+[errors]
+deny = ["let-underscore", "ok-discard", "err-arm", "ok-binding", "iterator-drop"]
+ambiguous = "skip"
+tests = "ignore"
+allowed-in = ["src/bin/report.rs"]
 ```
 
 CLI values override the file, which overrides built-in defaults. Unknown
@@ -139,6 +152,75 @@ effect to be assigned to one capability. `incomplete` accepts `"error"`,
 effect policy requires parser packs and at least one locked `call-effects` fact
 pack. The initial repository analyzer resolves Rust call syntax and propagates
 known external effects through local calls with DBSP.
+
+An effect barrier asks the other question. A capability says where an effect may
+live, which is about paths; a barrier says what one callable may reach, which is
+about the call graph, and no arrangement of files answers it. A hot loop may call
+anything in the repository and still must not allocate.
+
+A barrier is declared in source, because the callable is what carries it: a path
+pattern goes stale when the function moves and a comment on the function does
+not. `barrier` is a directive alongside `allow`, so a barrier named `hot-loop`
+is written on a callable as `straitjacket-barrier:hot-loop`:
+
+```rust
+// straitjacket-barrier:hot-loop
+pub fn tick(&mut self) -> Frame {
+    self.render()
+}
+```
+
+Every denied effect that callable reaches — directly, or through any call below
+it, however deep — is a finding, reported at the operation rather than at the
+barrier, with the chain of calls that carried it:
+
+```text
+src/support.rs:2:1  [effect-barrier]  hot-loop
+  allocate effect is denied below the hot-loop barrier on hot::tick
+  help: hot::tick reaches this through 2 calls; move the allocate out of the
+        path or hoist it above the barrier
+  via: src/hot.rs:3:1: hot::tick calls support::render
+  via: src/support.rs:2:1: support::render calls rust:allocation:format!
+```
+
+A marker that names no configured barrier forbids nothing and would otherwise
+say nothing about it, so `unknown-barrier` reports it. That covers a misspelled
+name and a barrier deleted from configuration whose markers were left behind;
+both read as a live guarantee and are decoration. It is the barrier counterpart
+to `unused-marker`, and it is on by default whether or not any barrier is
+configured.
+
+Barriers inherit the precision of the effect analysis under them, which
+under-approximates: a call syntax cannot resolve contributes no effect, so a
+clean barrier is a weaker claim than it appears. Set `incomplete = "error"` and
+prefer resolved observations when a barrier is load-bearing. Allocation origins
+are the standard-library operations that reach the allocator; `Vec::new` and an
+empty `vec![]` are not among them, and `clone` and `to_owned` cannot be judged
+without the receiver's type and so are not reported at all.
+
+`[errors]` turns on `error-discard`, which reports a fallible expression whose
+error is dropped rather than returned. Infact supplies the sites and the shape
+of each one; this section decides which shapes a repository refuses to carry.
+`deny` lists the forms that are findings, from `let-underscore`, `ok-discard`,
+`unwrap-or`, `err-arm`, `ok-binding`, `iterator-drop`, `cause-erased`, and
+`panic`.
+
+A finding says how far the failure could have travelled, which the enclosing
+signature alone cannot answer. Infact resolves the callers, so a discard is
+reported as reaching one of four places: the callable itself returns `Result`
+and declined to use it; a caller above returns `Result` and could have been
+told; every caller up to a root is infallible, so nothing can report it; or the
+callers could not be resolved from syntax, in which case the report says that
+rather than guessing. The evidence lists the calls that would have carried it.
+
+`.ok()` and an `Err(_)` arm name `Result` and nothing else. `.unwrap_or_default()`
+reads the same on `Option`, and the analyzer resolves no types, so those sites
+are reported only when `ambiguous` is `"warn"` or `"error"`; the default,
+`"skip"`, leaves them alone rather than guessing. `tests` accepts `"ignore"`,
+`"warn"`, or `"error"` for sites inside `#[cfg(test)]` or `#[test]`.
+`allowed-in` exempts paths that are permitted to discard, such as a top-level
+reporter that is already the last handler. The rule needs parser packs and no
+fact pack.
 
 Declared dependencies are the configuration for `library-opportunity`. There is
 no list of libraries to maintain: adding a dependency is the request to use it

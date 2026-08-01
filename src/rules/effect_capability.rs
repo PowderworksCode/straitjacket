@@ -31,6 +31,10 @@ impl PathPolicy {
         }
     }
 
+    /// Whether any spelling of this path matches one of the patterns.
+    ///
+    /// A path outside the root simply has no root-relative spelling to add as a
+    /// candidate; the absolute and joined forms still match.
     fn matches(&self, root: &Path, display_root: &Path, path: &Path) -> bool {
         let joined = display_root.join(path);
         let mut candidates = vec![normalize(path), normalize(&joined)];

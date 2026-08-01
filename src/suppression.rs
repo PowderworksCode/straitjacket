@@ -100,24 +100,9 @@ pub fn apply_repository(
                     .enumerate()
                     .filter(move |(_, file)| file.file.path == location.path)
                     .flat_map(move |(file_index, file)| {
-                        file.markers
-                            .iter()
-                            .enumerate()
-                            .filter(move |(_, marker)| {
-                                marker_covers(
-                                    marker,
-                                    rule,
-                                    location.line,
-                                    candidate.line_suppressible,
-                                )
-                            })
-                            .map(move |(marker_index, marker)| {
-                                (
-                                    file_index,
-                                    marker_index,
-                                    location_index,
-                                    marker_priority(marker),
-                                )
+                        covering_markers(file, rule, location.line, candidate.line_suppressible)
+                            .map(move |(marker_index, priority)| {
+                                (file_index, marker_index, location_index, priority)
                             })
                     })
             })
@@ -177,6 +162,23 @@ fn eligible(
             .iter()
             .any(|rule| applicable_rules.contains(rule)),
     }
+}
+
+/// The markers in one file that cover a line, with their priority.
+///
+/// Pulled out of the selection chain so the search reads as "for each location,
+/// for each file, the markers that cover it" rather than four nested closures.
+fn covering_markers<'a>(
+    file: &'a FileMarkers<'a>,
+    rule: RuleKey,
+    line: usize,
+    line_suppressible: bool,
+) -> impl Iterator<Item = (usize, (bool, bool))> + 'a {
+    file.markers
+        .iter()
+        .enumerate()
+        .filter(move |(_, marker)| marker_covers(marker, rule, line, line_suppressible))
+        .map(|(index, marker)| (index, marker_priority(marker)))
 }
 
 fn marker_priority(marker: &Marker) -> (bool, bool) {

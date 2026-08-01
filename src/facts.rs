@@ -49,8 +49,13 @@ const LIBRARY_BEHAVIOR_CAPABILITY: &str = "library-behaviors";
 /// Dependencies are the configuration. A synchronized lock records a pack for
 /// every dependency Infact can describe, so this is the set of libraries the
 /// repository already depends on and Straitjacket can hold it to.
+///
+/// Rule construction cannot return an error, so an unreadable lock is rejected
+/// by `Settings::validate` before any rule is built. Reaching the empty set
+/// here means the lock parsed and listed nothing.
 pub fn library_behavior_packages(settings: &FactSettings) -> BTreeSet<String> {
     let Ok(lock) = FactPackLock::read_or_default(&settings.lock) else {
+        // straitjacket-allow:error-discard — rejected by Settings::validate
         return BTreeSet::new();
     };
     lock.packs
@@ -108,10 +113,12 @@ impl FactRuntime {
         })
     }
 
+    /// Derive the selected facts, rebasing any observations onto this scan.
+    ///
+    /// A provider recorded paths from wherever the build ran, and a scan may be
+    /// rooted at a subdirectory, so the two have to be related before the
+    /// observations mean anything here.
     pub fn analyze(&self, root: &Path, selection: &AnalysisSelection) -> anyhow::Result<FactBatch> {
-        // A provider recorded paths from wherever the build ran; a scan may be
-        // rooted at a subdirectory, so the two have to be related before the
-        // observations mean anything here.
         let observations = self
             .observations
             .iter()
@@ -157,6 +164,36 @@ pub fn status(settings: &FactSettings) -> anyhow::Result<Vec<FactStatus>> {
         .collect()
 }
 
+/// Load a locked pack from the cache, announcing a cache that will not answer.
+///
+/// A locked pack that will not load is recoverable — the registry still has it
+/// — but the recovery is announced, because a cache that quietly stops
+/// answering looks like nothing more than a slow network.
+fn load_locked(
+    previous: &FactPackLock,
+    cache: &FactPackCache,
+    ecosystem: &str,
+    name: &str,
+    requested_version: &str,
+    description: &str,
+) -> Option<CachedFactPack> {
+    previous
+        .packs
+        .iter()
+        .find(|entry| {
+            entry.manifest.subject.ecosystem.as_deref() == Some(ecosystem)
+                && entry.manifest.subject.name == name
+                && version_matches(&entry.manifest.subject.version, requested_version)
+        })
+        .and_then(|entry| match cache.load(&entry.manifest_digest) {
+            Ok(pack) => Some(pack),
+            Err(error) => {
+                eprintln!("straitjacket: re-fetching {description}: {error}");
+                None
+            }
+        })
+}
+
 pub async fn sync(
     settings: &FactSettings,
     offline: bool,
@@ -182,16 +219,15 @@ pub async fn sync(
         let name = request.name.as_str();
         let requested_version = request.version.as_str();
         let description = format!("{ecosystem}:{name}@{requested_version}");
-        if let Some(pack) = previous
-            .packs
-            .iter()
-            .find(|entry| {
-                entry.manifest.subject.ecosystem.as_deref() == Some(ecosystem)
-                    && entry.manifest.subject.name == name
-                    && version_matches(&entry.manifest.subject.version, requested_version)
-            })
-            .and_then(|entry| cache.load(&entry.manifest_digest).ok())
-        {
+        let cached = load_locked(
+            &previous,
+            &cache,
+            ecosystem,
+            name,
+            requested_version,
+            &description,
+        );
+        if let Some(pack) = cached {
             let origin = previous
                 .packs
                 .iter()
@@ -408,14 +444,18 @@ fn pack_name(ecosystem: &str, name: &str) -> anyhow::Result<String> {
     }
 }
 
+/// The tags that name a pack of ours, newest revision first.
+///
+/// A registry lists every tag in the repository. One that does not parse is
+/// not a damaged pack of ours, it is somebody else's tag.
 fn candidate_tags(tags: &[String], requested_version: &str) -> Vec<String> {
     let mut candidates = tags
         .iter()
         .filter_map(|tag| {
             let (tag_version, revision) = tag.rsplit_once("-r")?;
-            let revision = revision.parse::<u32>().ok()?;
+            let revision = revision.parse::<u32>().ok()?; // straitjacket-allow:error-discard — a non-conforming tag is not ours
             let version = decode_tag_version(tag_version);
-            let parsed = semver::Version::parse(&version).ok()?;
+            let parsed = semver::Version::parse(&version).ok()?; // straitjacket-allow:error-discard — a non-conforming tag is not ours
             version_matches(&version, requested_version).then(|| (parsed, revision, tag.clone()))
         })
         .collect::<Vec<_>>();
@@ -436,19 +476,29 @@ fn version_matches(actual: &str, requested: &str) -> bool {
 
 /// Read every observation file a provider left in a directory.
 ///
-/// A provider writes one file per compilation unit. Missing observations are
-/// not an error: analysis falls back to syntax, which is the floor.
+/// Configuring no observations at all is not an error: analysis falls back to
+/// syntax, which is the floor. Asking for a directory that is not there is a
+/// different thing, and it is the shape a failed provider leaves behind, so it
+/// is reported rather than silently downgrading the scan.
 fn load_observations(directory: Option<&Path>) -> anyhow::Result<Vec<SemanticObservations>> {
     let Some(directory) = directory else {
         return Ok(Vec::new());
     };
     if !directory.is_dir() {
-        return Ok(Vec::new());
+        anyhow::bail!(
+            "[facts].observations is {}, which is not a directory; a provider that failed to write leaves exactly this",
+            directory.display()
+        );
     }
     let mut entries = std::fs::read_dir(directory)
         .with_context(|| format!("reading observations in {}", directory.display()))?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
+        .map(|entry| {
+            entry
+                .map(|entry| entry.path())
+                .with_context(|| format!("reading an entry in {}", directory.display()))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?
+        .into_iter()
         .filter(|path| {
             path.extension()
                 .is_some_and(|extension| extension == "json")
