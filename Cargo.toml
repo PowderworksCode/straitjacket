@@ -18,6 +18,7 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 directories = "6"
 entl-codebase = { path = "../entl/crates/entl-codebase" }
+entl-semantics = { path = "../entl/crates/entl-semantics" }
 entl-tree-sitter = { path = "../entl/crates/entl-tree-sitter" }
 globset = "0.4"
 infact-analysis = { path = "../infact/crates/infact-analysis" }

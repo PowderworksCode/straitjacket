@@ -1,5 +1,10 @@
 # straitjacket
 
+> **Early and unstable.** Straitjacket is under active development, has not been
+> released, and is not ready for use by anyone outside this repository.
+> Configuration keys, rule identifiers, and output shapes change without notice
+> or migration. Several rules depend on Infact packs that do not exist yet.
+
 Straitjacket is an opinionated, deterministic source scanner for CI. It finds a
 small set of code smells, applies explicit suppressions, and reports the results
 consistently as human-readable text, JSON, or SARIF.
@@ -24,7 +29,7 @@ language frontend lives in Straitjacket.
 | `unused-marker` | Flags suppression markers that did not suppress anything. |
 | `exact-clone` | Opt-in syntax-token clone detection. |
 | `near-clone` | Opt-in clone detection with configured identifier and literal normalization. |
-| `library-opportunity` | Flags local behavior equivalent to an API in an aspirational library. |
+| `library-opportunity` | Flags local behavior equivalent to an API in a library the repository already depends on. |
 | `effect-capability` | Enforces direct providers and permitted transitive access for configured effects. |
 | `analysis-incomplete` | Flags files that an enabled fact-backed analysis could not inspect. |
 
@@ -120,12 +125,6 @@ name = "filesystem"
 includes = ["file-read", "file-write"]
 provided-by = ["src/adapters/filesystem/**"]
 available-to = ["src/application/**", "src/bin/**"]
-
-[aspirations]
-libraries = [
-  "cargo:itertools@0.15",
-  "cargo:strum@0.28",
-]
 ```
 
 CLI values override the file, which overrides built-in defaults. Unknown
@@ -141,19 +140,25 @@ effect policy requires parser packs and at least one locked `call-effects` fact
 pack. The initial repository analyzer resolves Rust call syntax and propagates
 known external effects through local calls with DBSP.
 
+Declared dependencies are the configuration for `library-opportunity`. There is
+no list of libraries to maintain: adding a dependency is the request to use it
+well. `facts sync` locks an Infact pack for every dependency Infact can describe,
+and the rule then reports local code equivalent to an API those libraries
+already provide. Dependencies without a published pack are skipped, and
+`dependencies = "none"` turns the whole mechanism off.
+
 `facts sync` reads exact dependency versions from repository lockfiles through
-Entl, observes the active Rust compiler for the matching `rust-core` pack,
-checks configured OCI registries for matching prebuilt packs, verifies their
-contents, and writes `straitjacket.lock.toml`. Missing automatic packs are
-reported and skipped; missing aspiration packs are errors. `facts sync
---offline` verifies only the TOML lock and local content-addressed cache.
-Ordinary scans never run a compiler, resolve tags, contact a registry, or
-invoke a builder.
+Entl, checks configured OCI registries for matching prebuilt packs, verifies
+their contents, and writes `straitjacket.lock.toml`. Missing packs are reported
+and skipped. An enabled effect policy additionally observes the active Rust
+compiler and requires the matching `rust-core` pack. `facts sync --offline`
+verifies only the TOML lock and local content-addressed cache. Ordinary scans
+never run a compiler, resolve tags, contact a registry, or invoke a builder.
 
 GHCR is a cache, not the source of truth. A locally generated or private pack
 uses the same manifest, cache, and lock format. Straitjacket reuses an already
-locked local pack when its subject matches the configured aspiration, compiler,
-or exact dependency version.
+locked local pack when its subject matches the active compiler or an exact
+dependency version.
 
 With `build-missing = true`, a configured ecosystem builder is invoked only
 after prebuilt resolution fails. Straitjacket appends:

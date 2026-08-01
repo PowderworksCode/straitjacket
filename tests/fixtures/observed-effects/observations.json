@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "provenance": {
+    "provider": "rust.mir",
+    "provider_version": "0.0.0",
+    "toolchain": "rustc 1.99.0-nightly (b6839f4d0 2026-07-17)",
+    "unit": "fixture"
+  },
+  "coverage": {
+    "definitions": true,
+    "references": false,
+    "call_edges": true,
+    "types": false,
+    "implements": false
+  },
+  "definitions": [
+    {
+      "id": "fixture::adapters::filesystem::load",
+      "kind": "function",
+      "name": "fixture::adapters::filesystem::load",
+      "container": null,
+      "visibility": "unknown",
+      "span": {
+        "path": "src/adapters/filesystem.rs",
+        "start_line": 3,
+        "start_column": 1,
+        "end_line": 3,
+        "end_column": 25
+      }
+    },
+    {
+      "id": "fixture::domain::forbidden",
+      "kind": "function",
+      "name": "fixture::domain::forbidden",
+      "container": null,
+      "visibility": "unknown",
+      "span": {
+        "path": "src/domain.rs",
+        "start_line": 3,
+        "start_column": 1,
+        "end_line": 3,
+        "end_column": 30
+      }
+    }
+  ],
+  "references": [],
+  "call_edges": [
+    {
+      "span": {
+        "path": "src/adapters/filesystem.rs",
+        "start_line": 4,
+        "start_column": 5,
+        "end_line": 4,
+        "end_column": 22
+      },
+      "from": "fixture::adapters::filesystem::load",
+      "to": [
+        "std::fs::read"
+      ],
+      "dispatch": "static"
+    },
+    {
+      "span": {
+        "path": "src/adapters/filesystem.rs",
+        "start_line": 4,
+        "start_column": 5,
+        "end_line": 4,
+        "end_column": 42
+      },
+      "from": "fixture::adapters::filesystem::load",
+      "to": [
+        "std::result::Result::<T, E>::unwrap_or_default"
+      ],
+      "dispatch": "static"
+    },
+    {
+      "span": {
+        "path": "src/domain.rs",
+        "start_line": 4,
+        "start_column": 5,
+        "end_line": 4,
+        "end_column": 23
+      },
+      "from": "fixture::domain::forbidden",
+      "to": [
+        "std::fs::read"
+      ],
+      "dispatch": "static"
+    },
+    {
+      "span": {
+        "path": "src/domain.rs",
+        "start_line": 4,
+        "start_column": 5,
+        "end_line": 4,
+        "end_column": 43
+      },
+      "from": "fixture::domain::forbidden",
+      "to": [
+        "std::result::Result::<T, E>::unwrap_or_default"
+      ],
+      "dispatch": "static"
+    }
+  ],
+  "types": [],
+  "implements": [],
+  "gaps": []
+}

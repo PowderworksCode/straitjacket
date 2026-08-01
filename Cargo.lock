@@ -1463,6 +1463,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "entl-semantics"
+version = "0.0.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "entl-tree-sitter"
 version = "0.0.0"
 dependencies = [
@@ -2355,6 +2362,7 @@ dependencies = [
 name = "infact-analysis"
 version = "0.0.0"
 dependencies = [
+ "entl-semantics",
  "entl-tree-sitter",
  "infact-core",
  "infact-duplication",
@@ -2370,6 +2378,7 @@ dependencies = [
 name = "infact-core"
 version = "0.0.0"
 dependencies = [
+ "infact-normalize",
  "serde",
 ]
 
@@ -2422,6 +2431,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "infact-normalize"
+version = "0.0.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "infact-rust-behaviors"
 version = "0.0.0"
 dependencies = [
@@ -2429,6 +2445,8 @@ dependencies = [
  "entl-tree-sitter",
  "heck 0.5.0",
  "infact-core",
+ "infact-normalize",
+ "infact-rust-normalize",
  "serde",
  "sha2 0.10.9",
  "thiserror 2.0.19",
@@ -2440,6 +2458,7 @@ name = "infact-rust-effects"
 version = "0.0.0"
 dependencies = [
  "dbsp",
+ "entl-semantics",
  "entl-tree-sitter",
  "feldera-macros",
  "feldera-size-of",
@@ -2450,6 +2469,15 @@ dependencies = [
  "sha2 0.10.9",
  "tempfile",
  "thiserror 2.0.19",
+ "tree-sitter",
+]
+
+[[package]]
+name = "infact-rust-normalize"
+version = "0.0.0"
+dependencies = [
+ "entl-tree-sitter",
+ "infact-normalize",
  "tree-sitter",
 ]
 
@@ -4220,6 +4248,7 @@ dependencies = [
  "clap",
  "directories",
  "entl-codebase",
+ "entl-semantics",
  "entl-tree-sitter",
  "globset",
  "infact-analysis",

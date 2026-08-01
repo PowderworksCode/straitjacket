@@ -12,34 +12,23 @@ use crate::rules::RuleRegistration;
 const KEY: RuleKey = RuleKey::new("library-opportunity");
 
 struct LibraryOpportunityRule {
-    aspirations: Vec<String>,
     packages: BTreeSet<String>,
 }
 
 fn build(settings: &Settings) -> Box<dyn RepositoryRule> {
-    let aspirations = settings.facts.aspirations.clone();
-    let packages = aspirations
-        .iter()
-        .filter_map(|aspiration| {
-            aspiration
-                .split_once(':')
-                .map(|(_, subject)| subject.split_once('@').map_or(subject, |(name, _)| name))
-        })
-        .map(str::to_owned)
-        .collect();
     Box::new(LibraryOpportunityRule {
-        aspirations,
-        packages,
+        packages: crate::facts::library_behavior_packages(&settings.facts),
     })
 }
 
 fn instruction(settings: &Settings) -> String {
-    if settings.facts.aspirations.is_empty() {
-        return "Library behavior opportunities are not configured.".to_owned();
+    let packages = crate::facts::library_behavior_packages(&settings.facts);
+    if packages.is_empty() {
+        return "No dependency has locked library-behavior facts.".to_owned();
     }
     format!(
-        "Use established APIs from {} when Straitjacket reports an equivalent local implementation.",
-        settings.facts.aspirations.join(", ")
+        "This repository already depends on {}. Use their established APIs instead of reimplementing them; Straitjacket reports equivalent local implementations.",
+        packages.into_iter().collect::<Vec<_>>().join(", ")
     )
 }
 
@@ -56,8 +45,8 @@ impl RepositoryRule for LibraryOpportunityRule {
     fn descriptor(&self) -> RuleDescriptor {
         RuleDescriptor {
             id: KEY,
-            summary: "local implementation matches an aspirational library API",
-            default_enabled: !self.aspirations.is_empty(),
+            summary: "local implementation matches an API from a locked dependency",
+            default_enabled: !self.packages.is_empty(),
         }
     }
 

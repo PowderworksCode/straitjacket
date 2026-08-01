@@ -13,7 +13,7 @@ fn workspace() -> PathBuf {
 }
 
 fn install_pack(cache: &FactPackCache, name: &str) -> infact_fact_pack::CachedFactPack {
-    let root = workspace().join("infact/fact-packs").join(name);
+    let root = workspace().join("infact/infact-packs").join(name);
     let manifest =
         FactPackManifest::parse(&fs::read_to_string(root.join("pack.toml")).unwrap()).unwrap();
     let output = tempfile::tempdir().unwrap();
@@ -23,7 +23,7 @@ fn install_pack(cache: &FactPackCache, name: &str) -> infact_fact_pack::CachedFa
 }
 
 fn build_pack_layout(name: &str, layout: &Path) {
-    let root = workspace().join("infact/fact-packs").join(name);
+    let root = workspace().join("infact/infact-packs").join(name);
     let manifest =
         FactPackManifest::parse(&fs::read_to_string(root.join("pack.toml")).unwrap()).unwrap();
     build_oci_layout(&manifest, &root, layout).unwrap();
@@ -33,7 +33,7 @@ fn write_fact_config(root: &Path, cache: &Path, lock: &Path) {
     fs::write(
         root.join("straitjacket.toml"),
         format!(
-            "paths = [\"src\"]\n\n[facts]\ncache = {:?}\nlock = {:?}\nparser-paths = [{:?}]\ndependencies = \"none\"\n\n[aspirations]\nlibraries = [\"cargo:itertools@0.15\"]\n",
+            "paths = [\"src\"]\n\n[facts]\ncache = {:?}\nlock = {:?}\nparser-paths = [{:?}]\ndependencies = \"none\"\n",
             cache,
             lock,
             workspace().join("entl/parser-packs")
@@ -417,9 +417,19 @@ fn missing_locked_fact_pack_is_an_operational_error() {
 #[test]
 fn instructions_include_enabled_fact_backed_expectations() {
     let directory = tempfile::tempdir().unwrap();
+    let cache_path = directory.path().join("cache");
+    let cache = FactPackCache::open(&cache_path).unwrap();
+    let pack = install_pack(&cache, "rust-itertools");
+    let lock_path = directory.path().join("straitjacket.lock.toml");
+    let mut lock = FactPackLock::default();
+    lock.insert(&pack, Some("fixture:rust-itertools".to_owned()))
+        .unwrap();
+    lock.write(&lock_path).unwrap();
     fs::write(
         directory.path().join("straitjacket.toml"),
-        "[facts]\ndependencies='none'\nexact-clones=true\nnear-clones=true\nclone-exclude=['tests/fixtures']\n\n[facts.exact]\nmin-tokens=24\nmin-lines=4\n\n[facts.near]\nmin-tokens=30\nmin-lines=5\nmax-changed-percent=12\n\n[aspirations]\nlibraries=['cargo:itertools@0.15']\n",
+        format!(
+            "[facts]\ncache={cache_path:?}\nlock={lock_path:?}\ndependencies='none'\nexact-clones=true\nnear-clones=true\nclone-exclude=['tests/fixtures']\n\n[facts.exact]\nmin-tokens=24\nmin-lines=4\n\n[facts.near]\nmin-tokens=30\nmin-lines=5\nmax-changed-percent=12\n"
+        ),
     )
     .unwrap();
 
@@ -430,7 +440,7 @@ fn instructions_include_enabled_fact_backed_expectations() {
         .unwrap();
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout).unwrap();
-    assert!(text.contains("cargo:itertools@0.15"));
+    assert!(text.contains("already depends on itertools"), "{text}");
     assert!(text.contains("exact clone of at least 24 tokens"));
     assert!(text.contains("near clone of at least 30 tokens"));
     assert!(text.contains("no more than 12% changed tokens"));
@@ -483,9 +493,19 @@ fn sync_can_build_a_missing_pack_with_an_explicit_local_builder() {
     let cache = directory.path().join("cache");
     let lock = directory.path().join("straitjacket.lock.toml");
     fs::write(
+        directory.path().join("Cargo.toml"),
+        "[package]\nname='fixture'\nversion='0.0.0'\n\n[dependencies]\nitertools='0.15'\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("Cargo.lock"),
+        "version = 4\n\n[[package]]\nname='fixture'\nversion='0.0.0'\ndependencies=['itertools']\n\n[[package]]\nname='itertools'\nversion='0.15.0'\nsource='registry+https://github.com/rust-lang/crates.io-index'\nchecksum='0123456789abcdef'\n",
+    )
+    .unwrap();
+    fs::write(
         directory.path().join("straitjacket.toml"),
         format!(
-            "[facts]\ncache={cache:?}\nlock={lock:?}\nregistries=[]\ndependencies='none'\nbuild-missing=true\n\n[[facts.builders]]\necosystem='cargo'\ncommand=[{builder:?}]\n\n[aspirations]\nlibraries=['cargo:itertools@0.15.0']\n"
+            "[facts]\ncache={cache:?}\nlock={lock:?}\nregistries=[]\nbuild-missing=true\n\n[[facts.builders]]\necosystem='cargo'\ncommand=[{builder:?}]\n"
         ),
     )
     .unwrap();
@@ -577,5 +597,91 @@ fn clone_exclusions_scope_repository_rules() {
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+/// Resolved observations change what the scanner can see.
+///
+/// Both files reach `std::fs::read` through a module import, which syntax
+/// resolution cannot follow. Only one of them is allowed to. Without
+/// observations the scan is clean and that cleanliness means nothing; with
+/// them the violation is found.
+#[test]
+fn observations_reveal_an_effect_that_syntax_resolution_cannot_see() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir_all(directory.path().join("src/adapters")).unwrap();
+    fs::write(
+        directory.path().join("src/adapters/filesystem.rs"),
+        "use std::fs;\n\npub fn load() -> Vec<u8> {\n    fs::read(\"input\").unwrap_or_default()\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("src/domain.rs"),
+        "use std::fs;\n\npub fn forbidden() -> Vec<u8> {\n    fs::read(\"secret\").unwrap_or_default()\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("src/lib.rs"),
+        "pub mod adapters { pub mod filesystem; }\npub mod domain;\n",
+    )
+    .unwrap();
+
+    let cache_path = directory.path().join("cache");
+    let cache = FactPackCache::open(&cache_path).unwrap();
+    let pack = install_pack(&cache, "rust-core");
+    let lock_path = directory.path().join("straitjacket.lock.toml");
+    let mut lock = FactPackLock::default();
+    lock.insert(&pack, Some("fixture:rust-core".to_owned()))
+        .unwrap();
+    lock.write(&lock_path).unwrap();
+
+    let observations = directory.path().join("observations");
+    fs::create_dir_all(&observations).unwrap();
+    fs::copy(
+        workspace().join("straitjacket/tests/fixtures/observed-effects/observations.json"),
+        observations.join("fixture.json"),
+    )
+    .unwrap();
+
+    let config = |observations: Option<&Path>| {
+        let line = observations
+            .map(|path| format!("observations={path:?}\n"))
+            .unwrap_or_default();
+        format!(
+            "paths=['src']\n\n[facts]\ncache={cache_path:?}\nlock={lock_path:?}\nparser-paths=[{:?}]\ndependencies='none'\n{line}\n[effects]\nunlisted='allow'\nincomplete='ignore'\n\n[[effects.capabilities]]\nname='filesystem'\nincludes=['file-read']\nprovided-by=['src/adapters/**']\navailable-to=['src/**']\n",
+            workspace().join("entl/parser-packs")
+        )
+    };
+
+    // syntax resolution cannot follow `use std::fs; fs::read(..)`
+    fs::write(directory.path().join("straitjacket.toml"), config(None)).unwrap();
+    let syntax = binary().current_dir(directory.path()).output().unwrap();
+    let stdout = String::from_utf8(syntax.stdout).unwrap();
+    assert!(
+        !stdout.contains("[effect-capability]"),
+        "syntax should see nothing here, which is exactly the problem: {stdout}"
+    );
+
+    // the same scan, given what the compiler already resolved
+    fs::write(
+        directory.path().join("straitjacket.toml"),
+        config(Some(&observations)),
+    )
+    .unwrap();
+    let observed = binary().current_dir(directory.path()).output().unwrap();
+    let stdout = String::from_utf8(observed.stdout).unwrap();
+    assert_eq!(observed.status.code(), Some(1), "{stdout}");
+    assert!(
+        stdout.contains("src/domain.rs") && stdout.contains("[effect-capability]"),
+        "the disallowed read should be reported: {stdout}"
+    );
+    assert!(
+        stdout.contains("filesystem capability is not provided by this path"),
+        "{stdout}"
+    );
+    // the provider is allowed to do exactly this, so it must stay clean
+    assert!(
+        !stdout.contains("src/adapters/filesystem.rs"),
+        "the adapter provides the capability: {stdout}"
     );
 }

@@ -19,7 +19,7 @@ fn build(settings: &Settings) -> Box<dyn RepositoryRule> {
     Box::new(AnalysisIncompleteRule {
         enabled: settings.facts.exact_clones
             || settings.facts.near_clones
-            || !settings.facts.aspirations.is_empty()
+            || !crate::facts::library_behavior_packages(&settings.facts).is_empty()
             || settings
                 .effects
                 .as_ref()

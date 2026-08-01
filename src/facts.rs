@@ -3,6 +3,7 @@ use std::path::Path;
 
 use anyhow::{Context, bail};
 use entl_codebase::{DependencySource, InventoryOptions};
+use entl_semantics::SemanticObservations;
 use entl_tree_sitter::ParserCatalog;
 use infact_analysis::{AnalysisSelection, FactBatch, FactPackSet};
 use infact_fact_builder::{ExternalFactPackBuilder, FactPackBuildRequest};
@@ -14,6 +15,7 @@ use crate::config::{DependencySelection, FactBuilder, FactSettings};
 pub struct FactRuntime {
     parsers: ParserCatalog,
     packs: FactPackSet,
+    observations: Vec<SemanticObservations>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,6 +40,29 @@ struct FactRequest {
     name: String,
     version: String,
     required: bool,
+}
+
+const LIBRARY_BEHAVIOR_CAPABILITY: &str = "library-behaviors";
+
+/// Report the packages whose locked fact packs describe library behaviors.
+///
+/// Dependencies are the configuration. A synchronized lock records a pack for
+/// every dependency Infact can describe, so this is the set of libraries the
+/// repository already depends on and Straitjacket can hold it to.
+pub fn library_behavior_packages(settings: &FactSettings) -> BTreeSet<String> {
+    let Ok(lock) = FactPackLock::read_or_default(&settings.lock) else {
+        return BTreeSet::new();
+    };
+    lock.packs
+        .into_iter()
+        .filter(|pack| {
+            pack.manifest
+                .provides
+                .iter()
+                .any(|capability| capability.ends_with(LIBRARY_BEHAVIOR_CAPABILITY))
+        })
+        .map(|pack| pack.manifest.subject.name)
+        .collect()
 }
 
 impl FactRuntime {
@@ -65,9 +90,7 @@ impl FactRuntime {
                 )
             })?;
             let cache = FactPackCache::open(&settings.cache)?;
-            let packs = lock.verify(&cache)?;
-            validate_aspirations(settings, &packs)?;
-            packs
+            lock.verify(&cache)?
         } else {
             Vec::new()
         };
@@ -81,12 +104,31 @@ impl FactRuntime {
         Ok(Self {
             parsers: discovery.catalog,
             packs,
+            observations: load_observations(settings.observations.as_deref())?,
         })
     }
 
     pub fn analyze(&self, root: &Path, selection: &AnalysisSelection) -> anyhow::Result<FactBatch> {
-        infact_analysis::analyze_repository(root, &self.parsers, &self.packs, selection)
-            .map_err(Into::into)
+        // A provider recorded paths from wherever the build ran; a scan may be
+        // rooted at a subdirectory, so the two have to be related before the
+        // observations mean anything here.
+        let observations = self
+            .observations
+            .iter()
+            .cloned()
+            .map(|mut unit| {
+                unit.rebase(root);
+                unit
+            })
+            .collect::<Vec<_>>();
+        infact_analysis::analyze_repository_with_observations(
+            root,
+            &self.parsers,
+            &self.packs,
+            selection,
+            &observations,
+        )
+        .map_err(Into::into)
     }
 }
 
@@ -230,13 +272,6 @@ fn requests(settings: &FactSettings) -> anyhow::Result<Vec<FactRequest>> {
             );
         }
     }
-    for aspiration in &settings.aspirations {
-        let (ecosystem, name, version) = parse_aspiration(aspiration)?;
-        requests.insert(
-            (ecosystem.to_owned(), name.to_owned(), version.to_owned()),
-            true,
-        );
-    }
     Ok(requests
         .into_iter()
         .map(|((ecosystem, name, version), required)| FactRequest {
@@ -257,10 +292,11 @@ fn automatic_dependencies(settings: &FactSettings) -> anyhow::Result<Vec<FactReq
             )
         })?;
     let mut requests = BTreeSet::new();
-    if inventory
-        .packages
-        .iter()
-        .any(|package| package.kind == entl_codebase::PackageKind::Cargo)
+    if settings.require_call_effects
+        && inventory
+            .packages
+            .iter()
+            .any(|package| package.kind == entl_codebase::PackageKind::Cargo)
     {
         let compiler = entl_codebase::observe_rust_compiler(&settings.repository_root)
             .context("observing the active Rust compiler")?;
@@ -268,7 +304,7 @@ fn automatic_dependencies(settings: &FactSettings) -> anyhow::Result<Vec<FactReq
             ecosystem: "cargo".to_owned(),
             name: "core".to_owned(),
             version: compiler.version,
-            required: settings.require_call_effects,
+            required: true,
         });
     }
     for package in &inventory.packages {
@@ -365,45 +401,6 @@ fn pack_satisfies(pack: &CachedFactPack, request: &FactRequest) -> bool {
         && version_matches(&pack.manifest.subject.version, &request.version)
 }
 
-fn validate_aspirations(
-    settings: &FactSettings,
-    packs: &[infact_fact_pack::CachedFactPack],
-) -> anyhow::Result<()> {
-    for aspiration in &settings.aspirations {
-        let (ecosystem, subject) = aspiration
-            .split_once(':')
-            .ok_or_else(|| anyhow::anyhow!("invalid aspiration `{aspiration}`"))?;
-        let (name, requested_version) = subject
-            .split_once('@')
-            .ok_or_else(|| anyhow::anyhow!("invalid aspiration `{aspiration}`"))?;
-        let found = packs.iter().any(|pack| {
-            let manifest = &pack.manifest;
-            manifest.subject.ecosystem.as_deref() == Some(ecosystem)
-                && manifest.subject.name == name
-                && version_matches(&manifest.subject.version, requested_version)
-        });
-        if !found {
-            bail!(
-                "fact lock has no pack for aspiration {aspiration}; run `straitjacket facts sync`"
-            );
-        }
-    }
-    Ok(())
-}
-
-fn parse_aspiration(value: &str) -> anyhow::Result<(&str, &str, &str)> {
-    let (ecosystem, subject) = value
-        .split_once(':')
-        .ok_or_else(|| anyhow::anyhow!("invalid aspiration `{value}`"))?;
-    let (name, version) = subject
-        .split_once('@')
-        .ok_or_else(|| anyhow::anyhow!("invalid aspiration `{value}`"))?;
-    if ecosystem.is_empty() || name.is_empty() || version.is_empty() {
-        bail!("invalid aspiration `{value}`");
-    }
-    Ok((ecosystem, name, version))
-}
-
 fn pack_name(ecosystem: &str, name: &str) -> anyhow::Result<String> {
     match ecosystem {
         "cargo" => Ok(format!("rust-{name}")),
@@ -437,6 +434,38 @@ fn version_matches(actual: &str, requested: &str) -> bool {
             .is_some_and(|suffix| suffix.starts_with('.'))
 }
 
+/// Read every observation file a provider left in a directory.
+///
+/// A provider writes one file per compilation unit. Missing observations are
+/// not an error: analysis falls back to syntax, which is the floor.
+fn load_observations(directory: Option<&Path>) -> anyhow::Result<Vec<SemanticObservations>> {
+    let Some(directory) = directory else {
+        return Ok(Vec::new());
+    };
+    if !directory.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut entries = std::fs::read_dir(directory)
+        .with_context(|| format!("reading observations in {}", directory.display()))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "json")
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    entries
+        .into_iter()
+        .map(|path| {
+            let source = std::fs::read(&path)
+                .with_context(|| format!("reading observations {}", path.display()))?;
+            serde_json::from_slice(&source)
+                .with_context(|| format!("parsing observations {}", path.display()))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -446,7 +475,7 @@ mod tests {
     use super::{candidate_tags, requests, version_matches};
 
     #[test]
-    fn aspiration_versions_accept_a_more_specific_locked_version() {
+    fn requested_versions_accept_a_more_specific_pack_version() {
         assert!(version_matches("0.15.0", "0.15"));
         assert!(version_matches("0.15.0", "0.15.0"));
         assert!(!version_matches("0.150.0", "0.15"));
@@ -488,20 +517,26 @@ mod tests {
         let mut settings = Settings::default().facts;
         settings.repository_root = repository.path().to_path_buf();
 
-        let requests = requests(&settings).unwrap();
-        let compiler =
-            entl_codebase::observe_rust_compiler(repository.path()).expect("active rustc");
-        assert!(requests.iter().any(|request| {
-            request.ecosystem == "cargo"
-                && request.name == "core"
-                && request.version == compiler.version
-                && !request.required
-        }));
-        assert!(requests.iter().any(|request| {
+        let without_effects = requests(&settings).unwrap();
+        assert!(without_effects.iter().any(|request| {
             request.ecosystem == "cargo"
                 && request.name == "itertools"
                 && request.version == "0.15.0"
                 && !request.required
+        }));
+        assert!(
+            !without_effects.iter().any(|request| request.name == "core"),
+            "the language pack is only useful to effect analysis"
+        );
+
+        settings.require_call_effects = true;
+        let compiler =
+            entl_codebase::observe_rust_compiler(repository.path()).expect("active rustc");
+        assert!(requests(&settings).unwrap().iter().any(|request| {
+            request.ecosystem == "cargo"
+                && request.name == "core"
+                && request.version == compiler.version
+                && request.required
         }));
     }
 }

@@ -25,6 +25,7 @@ pub struct FactFileConfig {
     pub exact_clones: Option<bool>,
     pub near_clones: Option<bool>,
     pub clone_exclude: Option<Vec<String>>,
+    pub observations: Option<String>,
     #[serde(default)]
     pub builders: Vec<FactBuilderFileConfig>,
     #[serde(default)]
@@ -55,13 +56,6 @@ pub struct NearFactFileConfig {
     pub normalize_identifiers: Option<bool>,
     pub normalize_literals: Option<bool>,
     pub max_changed_percent: Option<u8>,
-}
-
-#[derive(Debug, Default, Clone, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct AspirationFileConfig {
-    #[serde(default)]
-    pub libraries: Vec<String>,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -134,10 +128,15 @@ pub struct FactSettings {
     pub exact_clones: bool,
     pub near_clones: bool,
     pub clone_exclude: Vec<PathBuf>,
+    /// Where a language provider left its resolved semantic observations.
+    ///
+    /// Analysis uses them when present and falls back to syntax when not, so a
+    /// repository that will not compile, or a language with no provider, still
+    /// gets scanned.
+    pub observations: Option<PathBuf>,
     pub builders: Vec<FactBuilder>,
     pub exact: ExactConfig,
     pub near: NearConfig,
-    pub aspirations: Vec<String>,
     pub require_call_effects: bool,
 }
 
@@ -166,8 +165,6 @@ pub struct FileConfig {
     pub fail_on_unused_markers: Option<bool>,
     #[serde(default)]
     pub facts: FactFileConfig,
-    #[serde(default)]
-    pub aspirations: AspirationFileConfig,
     pub effects: Option<EffectSettings>,
 }
 
@@ -221,10 +218,10 @@ impl Default for Settings {
                 exact_clones: false,
                 near_clones: false,
                 clone_exclude: Vec::new(),
+                observations: None,
                 builders: Vec::new(),
                 exact: ExactConfig::default(),
                 near: NearConfig::default(),
-                aspirations: Vec::new(),
                 require_call_effects: false,
             },
             effects: None,
@@ -311,6 +308,9 @@ impl Settings {
         if let Some(enabled) = facts.near_clones {
             self.facts.near_clones = enabled;
         }
+        if let Some(observations) = facts.observations {
+            self.facts.observations = Some(resolve_path(root, observations));
+        }
         if let Some(paths) = facts.clone_exclude {
             self.facts.clone_exclude = paths
                 .into_iter()
@@ -348,7 +348,6 @@ impl Settings {
                 .unwrap_or(near_defaults.max_changed_percent),
         };
         self.effects = file.effects;
-        self.facts.aspirations = file.aspirations.libraries;
         self.facts.require_call_effects = self.effects.is_some();
         self
     }
@@ -462,7 +461,7 @@ mod tests {
     #[test]
     fn fact_paths_are_relative_to_the_configuration() {
         let config: FileConfig = toml::from_str(
-            "[facts]\ncache = \"cache\"\nlock = \"facts.lock.toml\"\nparser-paths = [\"parsers\"]\ndependencies = \"none\"\nexact-clones = true\nclone-exclude = [\"tests/fixtures\"]\n\n[[facts.builders]]\necosystem = \"cargo\"\ncommand = [\"infact-builder\", \"build\"]\n\n[aspirations]\nlibraries = [\"cargo:itertools@0.15\"]\n",
+            "[facts]\ncache = \"cache\"\nlock = \"facts.lock.toml\"\nparser-paths = [\"parsers\"]\ndependencies = \"none\"\nexact-clones = true\nclone-exclude = [\"tests/fixtures\"]\n\n[[facts.builders]]\necosystem = \"cargo\"\ncommand = [\"infact-builder\", \"build\"]\n",
         )
         .unwrap();
         let settings = Settings::default().apply_file_at(config, Path::new("repo"));
@@ -480,7 +479,6 @@ mod tests {
         assert_eq!(settings.facts.parser_paths, vec![Path::new("repo/parsers")]);
         assert_eq!(settings.facts.dependencies, DependencySelection::None);
         assert!(settings.facts.exact_clones);
-        assert_eq!(settings.facts.aspirations, ["cargo:itertools@0.15"]);
     }
 
     #[test]
