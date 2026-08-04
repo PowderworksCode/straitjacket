@@ -1359,6 +1359,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "infact-behaviors"
+version = "0.0.0"
+dependencies = [
+ "infact-normalize",
+]
+
+[[package]]
 name = "infact-core"
 version = "0.0.0"
 dependencies = [
@@ -1437,6 +1444,7 @@ dependencies = [
  "entl-codebase",
  "entl-tree-sitter",
  "heck",
+ "infact-behaviors",
  "infact-core",
  "infact-fact-pack",
  "infact-normalize",
