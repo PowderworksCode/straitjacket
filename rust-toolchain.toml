@@ -1,0 +1,12 @@
+# The toolchain this repository is built and tested with.
+#
+# 1.97.1 fleet-wide, matching infact. An earlier 1.96.1 pin existed only because
+# 1.97.1 ICEd on dbsp 0.325; dbsp is gone as of infact 2f97ada and the ICE with
+# it.
+#
+# `components` is listed because clippy and rustfmt are not in the minimal
+# profile, and their absence reports as "'cargo-clippy' is not installed for the
+# toolchain", which reads like a lint failure rather than a missing component.
+[toolchain]
+channel = "1.97.1"
+components = ["clippy", "rustfmt"]
