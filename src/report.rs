@@ -138,7 +138,7 @@ pub fn sarif(findings: &[Finding], descriptors: &[RuleDescriptor], version: &str
                 "driver": {
                     "name": "straitjacket",
                     "semanticVersion": version,
-                    "informationUri": "https://github.com/zmaril/straitjacket",
+                    "informationUri": "https://github.com/PowderworksCode/straitjacket",
                     "rules": rules,
                 }
             },

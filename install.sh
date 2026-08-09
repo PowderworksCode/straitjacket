@@ -89,9 +89,63 @@ verify_checksum() {
     [ "$actual" = "$expected" ] || die "checksum mismatch for ${name}: expected ${expected}, got ${actual}"
 }
 
+# The API URL of one asset attached to a release.
+#
+# The API pretty-prints, so `url` and `name` arrive on separate lines and the
+# most recent asset `url` is the one the next `name` belongs to. The name is
+# compared as a string rather than as a pattern, so the dots in it cannot match
+# some other asset. The whole response is read rather than stopped at the match,
+# because closing the pipe early makes curl report a write failure that looks
+# like a real one.
+asset_url() {
+    awk -v want="$1" '
+        /"url":[[:space:]]*"[^"]*\/releases\/assets\/[0-9]/ {
+            line = $0
+            sub(/^[^"]*"url":[[:space:]]*"/, "", line)
+            sub(/".*$/, "", line)
+            url = line
+            next
+        }
+        /"name":[[:space:]]*"/ {
+            line = $0
+            sub(/^[^"]*"name":[[:space:]]*"/, "", line)
+            sub(/".*$/, "", line)
+            if (line == want && url != "" && found == "") {
+                found = url
+            }
+        }
+        END { if (found != "") print found }
+    '
+}
+
+# Download one release asset.
+#
+# A private repository will not serve the plain download URL to a token: it
+# redirects to another host and curl drops the credential there, as it should.
+# The API asset endpoint is the authenticated path that works, so it is used
+# whenever a token was supplied.
+#
+# The variables are prefixed because sh has no locals, and a plain `name` here
+# would overwrite the caller's.
+download_asset() {
+    asset_name=$1
+    asset_output=$2
+    if [ -n "${STRAITJACKET_BASE_URL:-}" ]; then
+        fetch "${STRAITJACKET_BASE_URL}/${asset_name}" >"$asset_output"
+    elif [ -n "${GITHUB_TOKEN:-}" ]; then
+        asset_api=$(fetch "${API}/releases/tags/${version}" | asset_url "$asset_name")
+        [ -n "$asset_api" ] || die "release ${version} has no asset named ${asset_name}"
+        curl -sSfL -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/octet-stream" "$asset_api" >"$asset_output"
+    else
+        curl -sSfL "${DOWNLOAD}/${version}/${asset_name}" >"$asset_output"
+    fi
+}
+
 main() {
     need curl
     need tar
+    need awk
 
     target=$(detect_target)
     version=${STRAITJACKET_VERSION:-}
@@ -101,7 +155,6 @@ main() {
         [ -n "$version" ] || die "no published release found. Set STRAITJACKET_VERSION to install a specific tag"
     fi
 
-    base=${STRAITJACKET_BASE_URL:-"${DOWNLOAD}/${version}"}
     name="straitjacket-${version}-${target}.tar.gz"
     install_dir=${STRAITJACKET_INSTALL_DIR:-"${HOME}/.local/bin"}
 
@@ -109,10 +162,10 @@ main() {
     trap 'rm -rf "$work"' EXIT INT TERM
 
     say "downloading ${name}"
-    fetch "${base}/${name}" >"${work}/${name}" ||
-        die "could not download ${base}/${name}"
-    fetch "${base}/SHA256SUMS" >"${work}/SHA256SUMS" ||
-        die "could not download ${base}/SHA256SUMS"
+    download_asset "$name" "${work}/${name}" ||
+        die "could not download ${name} from release ${version}"
+    download_asset SHA256SUMS "${work}/SHA256SUMS" ||
+        die "could not download SHA256SUMS from release ${version}"
     verify_checksum "${work}/${name}" "${work}/SHA256SUMS" "$name"
 
     tar -xzf "${work}/${name}" -C "$work"
