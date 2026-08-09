@@ -1,0 +1,112 @@
+name: release
+
+# A tag is the whole trigger. Everything the installer reads — the archives, the
+# checksums, and the "latest" pointer — is produced here, so a release is never
+# assembled by hand.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build a release for
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  # The release is created as a draft and published only after every archive and
+  # the checksum file are in place. A draft is not returned by the "latest"
+  # endpoint, so `install.sh` can never see a half-uploaded release.
+  draft:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      - name: Check the tag against Cargo.toml
+        run: |
+          crate=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          if [ "$TAG" != "v${crate}" ]; then
+            echo "tag ${TAG} does not match Cargo.toml version ${crate}" >&2
+            exit 1
+          fi
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft --title "$TAG" --generate-notes
+          fi
+
+  build:
+    needs: draft
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+      # Both Linux targets cross-compile from an ordinary x86_64 host, because
+      # .cargo/config.toml links them with rust-lld against a self-contained
+      # musl. No cross toolchain, container, or apt package is involved.
+      - run: rustup target add ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          key: ${{ matrix.target }}
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: Package
+        run: |
+          stage=$(mktemp -d)
+          cp "target/${{ matrix.target }}/release/straitjacket" "$stage/"
+          cp README.md LICENSE "$stage/"
+          tar -czf "straitjacket-${TAG}-${{ matrix.target }}.tar.gz" -C "$stage" \
+            straitjacket README.md LICENSE
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "$TAG" "straitjacket-${TAG}-${{ matrix.target }}.tar.gz" --clobber
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # The checksums are computed from what the release actually holds rather
+      # than from what each build job believes it uploaded.
+      - name: Checksum every archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release download "$TAG" --pattern '*.tar.gz' --dir assets
+          cd assets && sha256sum ./*.tar.gz | sed 's|\./||' > SHA256SUMS
+          cat SHA256SUMS
+          gh release upload "$TAG" SHA256SUMS --clobber
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "$TAG" --draft=false --latest

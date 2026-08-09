@@ -8,7 +8,7 @@ It has no service to call, no cache to warm, and no dependency outside
 crates.io. Point it at a directory and it prints findings.
 
 ```sh
-cargo install --git https://github.com/PowderworksCode/straitjacket
+curl -LsSf https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
 straitjacket .
 ```
 
@@ -22,6 +22,63 @@ straitjacket: 1 error(s), 0 warning(s) across 84 file(s); 0 suppressed
 The process exits `0` when clean, `1` for error-level findings, and `2` for a
 configuration or operational failure. `--no-fail` reports findings and exits
 successfully, which is the shape for a first run against an existing repository.
+
+## Installing
+
+`install.sh`, shown above, picks the build for your platform, checks it against
+the release checksums, and puts a single binary in `~/.local/bin`. The Linux builds are
+static, so one of them runs on any distribution regardless of its glibc. Set
+`STRAITJACKET_INSTALL_DIR` to install somewhere else and `STRAITJACKET_VERSION`
+to pin a tag instead of taking the latest.
+
+Prebuilt archives for `x86_64` and `aarch64` on Linux and macOS, with a
+`SHA256SUMS` file, are attached to [every release][releases]. To build from
+source instead:
+
+```sh
+cargo install --git https://github.com/PowderworksCode/straitjacket
+```
+
+[releases]: https://github.com/PowderworksCode/straitjacket/releases
+
+## GitHub Actions
+
+```yaml
+- uses: PowderworksCode/straitjacket@v0.1.0
+```
+
+That installs Straitjacket and scans the checked-out repository, failing the
+step on any error-level finding. To send findings to GitHub code scanning
+instead of only failing:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write
+
+steps:
+  - uses: actions/checkout@v5
+  - uses: PowderworksCode/straitjacket@v0.1.0
+    with:
+      sarif-file: straitjacket.sarif
+      fail-on-findings: "false"
+  - uses: github/codeql-action/upload-sarif@v3
+    with:
+      sarif_file: straitjacket.sarif
+```
+
+| input | default | meaning |
+| --- | --- | --- |
+| `version` | `latest` | Release tag to install, such as `v0.1.0`. |
+| `paths` | `.` | Files or directories to scan, separated by spaces. |
+| `args` | none | Further arguments, such as `--only color,emoji`. |
+| `sarif-file` | none | Write a SARIF report to this path. |
+| `fail-on-findings` | `true` | Fail the step on error-level findings. |
+| `token` | none | Only needed while this repository is private. |
+
+The action sets an `exit-code` output — `0` clean, `1` findings, `2`
+operational failure — so a later step can branch on the result even when
+`fail-on-findings` is off.
 
 ## Rules
 

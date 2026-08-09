@@ -1,0 +1,89 @@
+# straitjacket-allow-file:no-comments — an action definition is interface, read
+# by people wiring it into a workflow, and YAML has no documentation-comment
+# syntax to hoist the reasoning into.
+name: Straitjacket
+description: Scan a repository with Straitjacket and fail the build on findings.
+author: Powderworks
+
+branding:
+  icon: alert-octagon
+  color: red
+
+inputs:
+  version:
+    description: Release tag to install, such as v0.1.0, or `latest`.
+    required: false
+    default: latest
+  paths:
+    description: Files or directories to scan, separated by spaces.
+    required: false
+    default: "."
+  args:
+    description: Further straitjacket arguments, such as `--only color,emoji`.
+    required: false
+    default: ""
+  sarif-file:
+    description: Write a SARIF report to this path. Empty writes none.
+    required: false
+    default: ""
+  fail-on-findings:
+    description: Fail the step when there are error-level findings.
+    required: false
+    default: "true"
+  token:
+    description: >-
+      Token used to download the release. Needed only while the Straitjacket
+      repository is private; a public release needs none.
+    required: false
+    default: ""
+
+outputs:
+  exit-code:
+    description: The straitjacket exit code — 0 clean, 1 findings, 2 operational failure.
+    value: ${{ steps.scan.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install straitjacket
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        STRAITJACKET_INSTALL_DIR: ${{ runner.temp }}/straitjacket-bin
+        GITHUB_TOKEN: ${{ inputs.token }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -eu
+        if [ "$VERSION" != "latest" ]; then
+          export STRAITJACKET_VERSION="$VERSION"
+        fi
+        sh "${ACTION_PATH}/install.sh"
+        echo "$STRAITJACKET_INSTALL_DIR" >> "$GITHUB_PATH"
+
+    # Inputs reach the script through the environment rather than through
+    # expression interpolation, so a value containing shell syntax is an
+    # argument and never a command.
+    - name: Run straitjacket
+      id: scan
+      shell: bash
+      env:
+        PATHS: ${{ inputs.paths }}
+        EXTRA_ARGS: ${{ inputs.args }}
+        SARIF_FILE: ${{ inputs.sarif-file }}
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+      run: |
+        set -u
+        # Word splitting is the point: both inputs are argument lists.
+        # shellcheck disable=SC2086
+        set -- $PATHS
+        if [ -n "$SARIF_FILE" ]; then
+          set -- "$@" --sarif "$SARIF_FILE"
+        fi
+        if [ "$FAIL_ON_FINDINGS" != "true" ]; then
+          set -- "$@" --no-fail
+        fi
+        # shellcheck disable=SC2086
+        set -- "$@" $EXTRA_ARGS
+        straitjacket "$@" && code=0 || code=$?
+        echo "exit-code=${code}" >> "$GITHUB_OUTPUT"
+        exit "$code"

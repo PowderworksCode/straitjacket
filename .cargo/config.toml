@@ -1,0 +1,14 @@
+# Release builds for Linux are static musl binaries, so one download runs on any
+# distribution regardless of its glibc.
+#
+# `rust-lld` with a self-contained musl is what makes both of them cross-compile
+# from an ordinary x86_64 Linux host with no cross toolchain, no container, and
+# no apt packages. That is why the release workflow is one plain `cargo build`
+# per target and why a maintainer can reproduce a release binary locally.
+[target.x86_64-unknown-linux-musl]
+linker = "rust-lld"
+rustflags = ["-C", "link-self-contained=yes"]
+
+[target.aarch64-unknown-linux-musl]
+linker = "rust-lld"
+rustflags = ["-C", "link-self-contained=yes"]
