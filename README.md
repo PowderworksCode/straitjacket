@@ -67,14 +67,52 @@ steps:
       sarif_file: straitjacket.sarif
 ```
 
+Every command-line option has an input, so a workflow configures the scan in
+YAML rather than by assembling an argument string:
+
 | input | default | meaning |
 | --- | --- | --- |
 | `version` | `latest` | Release tag to install, such as `v0.1.0`. |
-| `paths` | `.` | Files or directories to scan, separated by spaces. |
-| `args` | none | Further arguments, such as `--only color,emoji`. |
+| `paths` | `.` | Files or directories to scan. |
+| `only` | none | Run only these rules. |
+| `skip` | none | Disable these rules. |
+| `format` | `text` | Output written to the log — `text`, `json`, or `sarif`. |
+| `max-lines` | config | Maximum lines per file. `0` disables `file-size`. |
+| `max-nesting` | config | Maximum indentation depth. `0` disables `deep-nesting`. |
+| `no-comments` | `false` | Enable the opt-in `no-comments` rule. |
+| `include-json` | `false` | Scan JSON files. |
+| `no-ignore` | `false` | Scan what ignore files and the hidden-file convention exclude. |
+| `config` | discovered | Use this configuration file instead of discovering one. |
+| `no-config` | `false` | Ignore checked-in configuration. |
 | `sarif-file` | none | Write a SARIF report to this path. |
 | `fail-on-findings` | `true` | Fail the step on error-level findings. |
+| `fail-on-unused-markers` | `true` | Report suppression markers that suppress nothing. |
 | `token` | none | Only needed while this repository is private. |
+
+`paths`, `only`, and `skip` take either a list or a single line, so both of
+these mean the same thing:
+
+```yaml
+- uses: PowderworksCode/straitjacket@v0.1.0
+  with:
+    paths: src tests
+    only: color,emoji
+```
+
+```yaml
+- uses: PowderworksCode/straitjacket@v0.1.0
+  with:
+    paths: |
+      src
+      tests
+    only: |
+      color
+      emoji
+```
+
+A boolean input must be exactly `true` or `false`. `True` or `yes` is an error
+rather than a silent `false`, because a scanner that quietly stops enforcing is
+worse than one that fails.
 
 The action sets an `exit-code` output — `0` clean, `1` findings, `2`
 operational failure — so a later step can branch on the result even when

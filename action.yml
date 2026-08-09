@@ -15,19 +15,62 @@ inputs:
     required: false
     default: latest
   paths:
-    description: Files or directories to scan, separated by spaces.
+    description: >-
+      Files or directories to scan. Accepts one per line or several on one line.
     required: false
     default: "."
-  args:
-    description: Further straitjacket arguments, such as `--only color,emoji`.
+  only:
+    description: >-
+      Run only these rules. Accepts one per line or a comma-separated list.
     required: false
     default: ""
+  skip:
+    description: >-
+      Disable these rules. Accepts one per line or a comma-separated list.
+    required: false
+    default: ""
+  format:
+    description: Output format written to the log — `text`, `json`, or `sarif`.
+    required: false
+    default: text
+  max-lines:
+    description: Maximum lines per file. `0` disables the `file-size` rule.
+    required: false
+    default: ""
+  max-nesting:
+    description: Maximum indentation depth. `0` disables the `deep-nesting` rule.
+    required: false
+    default: ""
+  no-comments:
+    description: Enable the opt-in `no-comments` rule.
+    required: false
+    default: "false"
+  include-json:
+    description: Scan JSON files, which are skipped by default.
+    required: false
+    default: "false"
+  no-ignore:
+    description: Scan files that .gitignore, .ignore, and the hidden-file convention exclude.
+    required: false
+    default: "false"
+  config:
+    description: Use this configuration file instead of discovering one.
+    required: false
+    default: ""
+  no-config:
+    description: Ignore checked-in configuration.
+    required: false
+    default: "false"
   sarif-file:
     description: Write a SARIF report to this path. Empty writes none.
     required: false
     default: ""
   fail-on-findings:
     description: Fail the step when there are error-level findings.
+    required: false
+    default: "true"
+  fail-on-unused-markers:
+    description: Report suppression markers that suppress nothing.
     required: false
     default: "true"
   token:
@@ -68,22 +111,65 @@ runs:
       shell: bash
       env:
         PATHS: ${{ inputs.paths }}
-        EXTRA_ARGS: ${{ inputs.args }}
+        ONLY: ${{ inputs.only }}
+        SKIP: ${{ inputs.skip }}
+        FORMAT: ${{ inputs.format }}
+        MAX_LINES: ${{ inputs.max-lines }}
+        MAX_NESTING: ${{ inputs.max-nesting }}
+        NO_COMMENTS: ${{ inputs.no-comments }}
+        INCLUDE_JSON: ${{ inputs.include-json }}
+        NO_IGNORE: ${{ inputs.no-ignore }}
+        CONFIG: ${{ inputs.config }}
+        NO_CONFIG: ${{ inputs.no-config }}
         SARIF_FILE: ${{ inputs.sarif-file }}
         FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+        FAIL_ON_UNUSED_MARKERS: ${{ inputs.fail-on-unused-markers }}
       run: |
         set -u
-        # Word splitting is the point: both inputs are argument lists.
+
+        # A boolean input is a string, and `True` or `yes` would otherwise be
+        # silently read as false. A scanner that quietly stops enforcing is
+        # worse than one that fails, so an unrecognized value is an error.
+        boolean() {
+          case "$2" in
+            true | false) ;;
+            *)
+              echo "straitjacket action: ${1} must be true or false, got '${2}'" >&2
+              exit 2
+              ;;
+          esac
+          [ "$2" = "true" ]
+        }
+
+        # A YAML list arrives as a newline-separated string; `--only` and
+        # `--skip` want it comma-separated. Both spellings are accepted so the
+        # workflow can read the way its author finds clearest.
+        commas() {
+          printf '%s' "$1" | tr '\n ' ',,' | sed 's/,\{1,\}/,/g; s/^,//; s/,$//'
+        }
+
+        # Word splitting is the point: paths are an argument list, and IFS
+        # splits on newlines as well as spaces, so a YAML block works too.
         # shellcheck disable=SC2086
         set -- $PATHS
-        if [ -n "$SARIF_FILE" ]; then
-          set -- "$@" --sarif "$SARIF_FILE"
+
+        if [ -n "$ONLY" ]; then set -- "$@" --only "$(commas "$ONLY")"; fi
+        if [ -n "$SKIP" ]; then set -- "$@" --skip "$(commas "$SKIP")"; fi
+        if [ -n "$FORMAT" ]; then set -- "$@" --format "$FORMAT"; fi
+        if [ -n "$MAX_LINES" ]; then set -- "$@" --max-lines "$MAX_LINES"; fi
+        if [ -n "$MAX_NESTING" ]; then set -- "$@" --max-nesting "$MAX_NESTING"; fi
+        if [ -n "$CONFIG" ]; then set -- "$@" --config "$CONFIG"; fi
+        if [ -n "$SARIF_FILE" ]; then set -- "$@" --sarif "$SARIF_FILE"; fi
+
+        if boolean no-comments "$NO_COMMENTS"; then set -- "$@" --no-comments; fi
+        if boolean include-json "$INCLUDE_JSON"; then set -- "$@" --include-json; fi
+        if boolean no-ignore "$NO_IGNORE"; then set -- "$@" --no-ignore; fi
+        if boolean no-config "$NO_CONFIG"; then set -- "$@" --no-config; fi
+        if ! boolean fail-on-findings "$FAIL_ON_FINDINGS"; then set -- "$@" --no-fail; fi
+        if ! boolean fail-on-unused-markers "$FAIL_ON_UNUSED_MARKERS"; then
+          set -- "$@" --no-fail-on-unused-markers
         fi
-        if [ "$FAIL_ON_FINDINGS" != "true" ]; then
-          set -- "$@" --no-fail
-        fi
-        # shellcheck disable=SC2086
-        set -- "$@" $EXTRA_ARGS
+
         straitjacket "$@" && code=0 || code=$?
         echo "exit-code=${code}" >> "$GITHUB_OUTPUT"
         exit "$code"
