@@ -1,23 +1,15 @@
-mod analysis_incomplete;
 mod color;
 mod comments;
 mod deep_nesting;
-mod effect_barrier;
-mod effect_capability;
 mod emoji;
-mod error_discard;
-mod exact_clone;
 mod file_size;
 mod inline_font;
 mod inline_svg;
 mod key;
-mod library_opportunity;
 mod motion;
-mod near_clone;
 mod no_comments;
 mod regex_rule;
 mod stray_todo;
-mod unknown_barrier;
 mod unused_marker;
 
 use anyhow::bail;
