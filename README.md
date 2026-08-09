@@ -10,11 +10,8 @@
   <a href="https://github.com/marketplace/actions/powderworkscode-straitjacket"><img src="https://img.shields.io/badge/marketplace-powderworkscode--straitjacket-2088FF?logo=githubactions&logoColor=white" alt="Straitjacket on the GitHub Marketplace"></a>
 </p>
 
-Straitjacket is a fast, deterministic scanner that flags the weird code LLMs
-like to produce. It sweeps your files against a set of rules — with snobby yet
-configurable defaults — and flags anything it finds. It's a single static Rust
-binary with no runtime dependencies, so it drops into almost any environment or
-repo's CI, regardless of language or stack.
+Straitjacket is a fast, deterministic scanner that flags the weird code and text LLMs
+like to produce. It sweeps your files against a set of configurable rules and flags anything it finds. 
 
 ```sh
 # quick start (Linux x86_64/aarch64, macOS arm64/x86_64):
@@ -35,32 +32,13 @@ successfully, which is the shape for a first run against an existing repository.
 
 ## Background & philosophy
 
-Straitjacket started life as the per-repo `lint-*` Bun scripts in powdermonkey
-(PR #41), written because I got annoyed with the way Claude kept messing with
-the design of the interface, as well as with the kinds of code and text it would
+Straitjacket started life as a series of scripts, written because I got annoyed with the way Claude kept messing with
+the design of interfaces, as well as with the kinds of code and text it would
 output. I'd written versions of these linters across various projects over the
 last few years, and I kept finding new smells as I generated more code and text
 over time. Eventually I decided to bundle them all into one tool, so I wouldn't
 have to keep rewriting them haphazardly all over the place — and so other people
 could use it and tell me what other annoying things LLMs tend to do.
-
-During the initial development of Straitjacket, I had a strong realization: what
-bothers me most about the way LLMs change the design of an application maps
-neatly onto common UI settings. Claude randomly inserts elements and changes
-their colors — that's the province of a theme switcher. Claude decides it needs
-ten font families and a hundred sizes and weights — that's the purview of a font
-family and size picker. Every element on a page wiggles in its own individual
-way; well, well, well, that's a motion-control toggle. So, in a way, in lieu of
-guidance — of an enforced design system — why shouldn't Claude get freaky with
-it? We never said it couldn't.
-
-So, alongside restricting the design tokens above to blessed files, I'd
-recommend giving users a way to control these settings too. To me, the two go
-hand in hand. Likewise, when reviewing code, I found it was very easy for Claude
-to squirrel thousands of lines away into a single file. I'd review all the
-lines, they'd look fine, but these monsters would sneak up on me before I knew
-it. Refactoring them always made the codebase better, and I've found that 1500
-lines is about where they start breaking down logically enough for me to notice.
 
 Straitjacket has become an exercise in me encoding as much of my personal tastes
 as I can into deterministic checkers I can run across LLM output, hopefully
@@ -87,7 +65,7 @@ cargo install straitjacket
 ## GitHub Actions
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.0
+- uses: PowderworksCode/straitjacket@v0.1.1
 ```
 
 That installs Straitjacket and scans the checked-out repository, failing the
@@ -101,7 +79,7 @@ permissions:
 
 steps:
   - uses: actions/checkout@v5
-  - uses: PowderworksCode/straitjacket@v0.1.0
+  - uses: PowderworksCode/straitjacket@v0.1.1
     with:
       sarif-file: straitjacket.sarif
       fail-on-findings: "false"
@@ -115,7 +93,7 @@ YAML rather than by assembling an argument string:
 
 | input | default | meaning |
 | --- | --- | --- |
-| `version` | `latest` | Release tag to install, such as `v0.1.0`. |
+| `version` | `latest` | Release tag to install, such as `v0.1.1`. |
 | `paths` | `.` | Files or directories to scan. |
 | `only` | none | Run only these rules. |
 | `skip` | none | Disable these rules. |
@@ -136,14 +114,14 @@ YAML rather than by assembling an argument string:
 these mean the same thing:
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.0
+- uses: PowderworksCode/straitjacket@v0.1.1
   with:
     paths: src tests
     only: color,emoji
 ```
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.0
+- uses: PowderworksCode/straitjacket@v0.1.1
   with:
     paths: |
       src
@@ -264,48 +242,6 @@ Rules then narrow further. `color` and `motion` run wherever style values can
 appear, which includes Vue, Svelte, and JSX as well as CSS; `deep-nesting` runs
 only on languages that nest executable code; `emoji` runs everywhere except data
 formats.
-
-## Upgrading from an earlier build
-
-Straitjacket used to carry eight more rules — `exact-clone`, `near-clone`,
-`library-opportunity`, `effect-capability`, `effect-barrier`, `unknown-barrier`,
-`error-discard`, and `analysis-incomplete`. Each of them read facts from a
-package that was never published, so none of them could run outside the
-repository that built them. They are gone, along with the `facts sync` and
-`facts status` subcommands and the `[facts]`, `[effects]`, and `[errors]`
-configuration sections.
-
-A configuration that still names one of them fails at startup with a message
-naming the rule. Delete the section or the rule ID and the rest of the file
-keeps working.
-
-## Architecture
-
-Rules emit unsuppressed candidates. The scanner applies suppression once, then
-reporters render the surviving findings. Findings carry related locations and
-ordered evidence paths.
-
-Rule identifiers are static `RuleKey` values owned by inventory registrations.
-Configuration strings resolve against that catalog before scanning; findings,
-suppression, reporting, and generated instructions then share the resolved key.
-Every rule lives under `src/rules` with its generated instruction text and
-submits itself through `inventory`; scanner construction sorts registrations and
-rejects invalid names, duplicate keys, and mismatched factories.
-
-`src/language.rs` holds the language table — extensions, filenames, shebangs,
-comment syntax, and the facets rules select on. `src/walk.rs` is the file walk.
-Adding a language is an entry in that table.
-
-## Contributing
-
-Found a new smell?
-
-LLMs invent new tells constantly, and everyone's "Yuck!" is a little different.
-If you've spotted a pattern Straitjacket should catch — or a false positive it
-shouldn't! — [**file an issue**](https://github.com/PowderworksCode/straitjacket/issues).
-Concrete examples help most. What is wanted most:
-
-- **New rules** — a deterministic smell that generalizes across repos.
 
 ## License
 
