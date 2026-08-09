@@ -40,6 +40,37 @@ would help a future agent. Keep temporary plans and task-specific notes out.
   the reason; do not extend the marker to implementation source.
 - CI builds the musl release target on every run. A release build that only
   breaks when a tag is pushed is discovered too late to fix quietly.
+- `install-smoke.yml` is **called** by the release workflow, not triggered by
+  `release: published`. An event raised by `GITHUB_TOKEN` does not start
+  another workflow run, so a `release` trigger there fires never. This was not
+  theoretical: it silently did nothing on the first v0.1.0 release.
+- A GitHub expression treats the empty string as falsy, so `x && '' || y`
+  yields `y`, not the empty string. Clearing a value conditionally has to
+  happen in the shell step. Both `action.yml` and `install-smoke.yml` were
+  written wrong here once.
+- `install.sh` downloads through the crates.io-style API asset endpoint when a
+  token is present, because the plain release download URL redirects to another
+  host and curl drops the credential across the hop. Without that, the script
+  cannot install from a private repository at all.
+
+## Publishing to crates.io
+
+- The `crate` job in the release workflow publishes with **trusted
+  publishing**: crates.io mints a token over OIDC that lives under an hour and
+  the action revokes it at the end. There is no registry token stored in this
+  repository, and there should never be one.
+- crates.io scopes that trust to this repository **and this workflow filename**.
+  Renaming `release.yml` breaks publishing until the trusted publisher is
+  updated on crates.io to match.
+- The job runs after the install smoke test, because a crates.io version can
+  never be replaced, only yanked. Everything that can be checked is checked
+  before the irreversible step.
+- It skips a version crates.io already has, so re-running a release for an
+  existing tag is safe.
+- The **first** publish of a crate cannot use trusted publishing. crates.io has
+  no equivalent of PyPI's pending publishers, so a new crate must be published
+  once with an API token before the trusted publisher can be configured
+  against it.
 
 ## Rules
 
