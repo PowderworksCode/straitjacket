@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/marketplace/actions/powderworkscode-straitjacket"><img src="https://img.shields.io/badge/marketplace-powderworkscode--straitjacket-2088FF?logo=githubactions&logoColor=white" alt="Straitjacket on the GitHub Marketplace"></a>
+  <a href="https://github.com/marketplace/actions/powderworks-straitjacket"><img src="https://img.shields.io/badge/marketplace-powderworks--straitjacket-2088FF?logo=githubactions&logoColor=white" alt="Powderworks Straitjacket on the GitHub Marketplace"></a>
 </p>
 
 Straitjacket is a fast, deterministic scanner that flags the weird code and text LLMs
