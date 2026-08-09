@@ -55,6 +55,19 @@ would help a future agent. Keep temporary plans and task-specific notes out.
 
 ## Publishing to crates.io
 
+- The publish logic lives in `scripts/publish.sh`, not in the workflow, so the
+  one irreversible action in this repository can be run and read by hand. The
+  `crate` job is a caller. `scripts/publish.sh --dry-run` also runs in CI on
+  every change, so the publish path is exercised long before the tag that
+  makes it real.
+- `--index` points the already-published check at something other than
+  index.crates.io, which is what would let the whole path be rehearsed against
+  a local sparse index.
+- The release workflow takes a `concurrency` group with
+  `cancel-in-progress: false`. A cancelled `cargo publish` can leave a version
+  uploaded that can never be reused.
+- The `crate` job names the `crates-io` environment, which is where a required
+  reviewer goes if a publish should need a human first.
 - The `crate` job in the release workflow publishes with **trusted
   publishing**: crates.io mints a token over OIDC that lives under an hour and
   the action revokes it at the end. There is no registry token stored in this
@@ -70,7 +83,10 @@ would help a future agent. Keep temporary plans and task-specific notes out.
 - The **first** publish of a crate cannot use trusted publishing. crates.io has
   no equivalent of PyPI's pending publishers, so a new crate must be published
   once with an API token before the trusted publisher can be configured
-  against it.
+  against it. A `CARGO_REGISTRY_TOKEN` repository secret covers exactly that
+  one release: when it is set the job uses it, and when it is absent the job
+  uses OIDC. Delete the secret once the trusted publisher exists — leaving it
+  there defeats the reason for any of this.
 
 ## Rules
 
