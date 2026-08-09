@@ -1,15 +1,25 @@
 # straitjacket
 
-Straitjacket is an opinionated, deterministic source scanner for CI. It finds a
-small set of code smells, applies explicit suppressions, and reports the results
-as human-readable text, JSON, or SARIF.
+<p align="center">
+  <img src="assets/strait-waistcoat.jpg" alt="Engraving of a patient restrained in a strait-waistcoat" width="320">
+  <br>
+  <em><sub>Insane patient in a strait-waistcoat. Wellcome Collection (L0011301), <a href="https://creativecommons.org/licenses/by/4.0">CC BY 4.0</a>, via <a href="https://commons.wikimedia.org/wiki/File:Insane_patient_in_a_strait-waistcoat._Wellcome_L0011301.jpg">Wikimedia Commons</a>.</sub></em>
+</p>
 
-It has no service to call, no cache to warm, and no dependency outside
-crates.io. Point it at a directory and it prints findings.
+<p align="center">
+  <a href="https://github.com/marketplace/actions/powderworkscode-straitjacket"><img src="https://img.shields.io/badge/marketplace-powderworkscode--straitjacket-2088FF?logo=githubactions&logoColor=white" alt="Straitjacket on the GitHub Marketplace"></a>
+</p>
+
+Straitjacket is a fast, deterministic scanner that flags the weird code LLMs
+like to produce. It sweeps your files against a set of rules — with snobby yet
+configurable defaults — and flags anything it finds. It's a single static Rust
+binary with no runtime dependencies, so it drops into almost any environment or
+repo's CI, regardless of language or stack.
 
 ```sh
+# quick start (Linux x86_64/aarch64, macOS arm64/x86_64):
 curl -LsSf https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
-straitjacket .
+straitjacket
 ```
 
 ```text
@@ -22,6 +32,39 @@ straitjacket: 1 error(s), 0 warning(s) across 84 file(s); 0 suppressed
 The process exits `0` when clean, `1` for error-level findings, and `2` for a
 configuration or operational failure. `--no-fail` reports findings and exits
 successfully, which is the shape for a first run against an existing repository.
+
+## Background & philosophy
+
+Straitjacket started life as the per-repo `lint-*` Bun scripts in powdermonkey
+(PR #41), written because I got annoyed with the way Claude kept messing with
+the design of the interface, as well as with the kinds of code and text it would
+output. I'd written versions of these linters across various projects over the
+last few years, and I kept finding new smells as I generated more code and text
+over time. Eventually I decided to bundle them all into one tool, so I wouldn't
+have to keep rewriting them haphazardly all over the place — and so other people
+could use it and tell me what other annoying things LLMs tend to do.
+
+During the initial development of Straitjacket, I had a strong realization: what
+bothers me most about the way LLMs change the design of an application maps
+neatly onto common UI settings. Claude randomly inserts elements and changes
+their colors — that's the province of a theme switcher. Claude decides it needs
+ten font families and a hundred sizes and weights — that's the purview of a font
+family and size picker. Every element on a page wiggles in its own individual
+way; well, well, well, that's a motion-control toggle. So, in a way, in lieu of
+guidance — of an enforced design system — why shouldn't Claude get freaky with
+it? We never said it couldn't.
+
+So, alongside restricting the design tokens above to blessed files, I'd
+recommend giving users a way to control these settings too. To me, the two go
+hand in hand. Likewise, when reviewing code, I found it was very easy for Claude
+to squirrel thousands of lines away into a single file. I'd review all the
+lines, they'd look fine, but these monsters would sneak up on me before I knew
+it. Refactoring them always made the codebase better, and I've found that 1500
+lines is about where they start breaking down logically enough for me to notice.
+
+Straitjacket has become an exercise in me encoding as much of my personal tastes
+as I can into deterministic checkers I can run across LLM output, hopefully
+saving me the trouble of having to go "Yuck!" myself.
 
 ## Installing
 
@@ -36,7 +79,7 @@ Prebuilt archives for `x86_64` and `aarch64` on Linux and macOS, with a
 source instead:
 
 ```sh
-cargo install --git https://github.com/PowderworksCode/straitjacket
+cargo install straitjacket
 ```
 
 [releases]: https://github.com/PowderworksCode/straitjacket/releases
@@ -253,6 +296,22 @@ rejects invalid names, duplicate keys, and mismatched factories.
 comment syntax, and the facets rules select on. `src/walk.rs` is the file walk.
 Adding a language is an entry in that table.
 
+## Contributing
+
+Found a new smell?
+
+LLMs invent new tells constantly, and everyone's "Yuck!" is a little different.
+If you've spotted a pattern Straitjacket should catch — or a false positive it
+shouldn't! — [**file an issue**](https://github.com/PowderworksCode/straitjacket/issues).
+Concrete examples help most. What is wanted most:
+
+- **New rules** — a deterministic smell that generalizes across repos.
+
 ## License
 
-MIT.
+Code is [MIT](LICENSE).
+
+The banner image (`assets/strait-waistcoat.jpg`) — *Insane patient in a
+strait-waistcoat*, [Wellcome Collection](https://wellcomecollection.org/works/ckwscya3)
+(L0011301) — is licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0)
+and is **not** covered by the MIT license; reuse it under its own terms.
