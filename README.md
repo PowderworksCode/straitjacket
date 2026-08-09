@@ -1,15 +1,22 @@
 # straitjacket
 
-Straitjacket is an opinionated, deterministic source scanner for CI. It finds a
-small set of code smells, applies explicit suppressions, and reports the results
-as human-readable text, JSON, or SARIF.
+<p align="center">
+  <img src="assets/strait-waistcoat.jpg" alt="Engraving of a patient restrained in a strait-waistcoat" width="320">
+  <br>
+  <em><sub>Insane patient in a strait-waistcoat. Wellcome Collection (L0011301), <a href="https://creativecommons.org/licenses/by/4.0">CC BY 4.0</a>, via <a href="https://commons.wikimedia.org/wiki/File:Insane_patient_in_a_strait-waistcoat._Wellcome_L0011301.jpg">Wikimedia Commons</a>.</sub></em>
+</p>
 
-It has no service to call, no cache to warm, and no dependency outside
-crates.io. Point it at a directory and it prints findings.
+<p align="center">
+  <a href="https://github.com/marketplace/actions/powderworkscode-straitjacket"><img src="https://img.shields.io/badge/marketplace-powderworkscode--straitjacket-2088FF?logo=githubactions&logoColor=white" alt="Straitjacket on the GitHub Marketplace"></a>
+</p>
+
+Straitjacket is a fast, deterministic scanner that flags the weird code and text LLMs
+like to produce. It sweeps your files against a set of configurable rules and flags anything it finds. 
 
 ```sh
+# quick start (Linux x86_64/aarch64, macOS arm64/x86_64):
 curl -LsSf https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
-straitjacket .
+straitjacket
 ```
 
 ```text
@@ -22,6 +29,20 @@ straitjacket: 1 error(s), 0 warning(s) across 84 file(s); 0 suppressed
 The process exits `0` when clean, `1` for error-level findings, and `2` for a
 configuration or operational failure. `--no-fail` reports findings and exits
 successfully, which is the shape for a first run against an existing repository.
+
+## Background & philosophy
+
+Straitjacket started life as a series of scripts, written because I got annoyed with the way Claude kept messing with
+the design of interfaces, as well as with the kinds of code and text it would
+output. I'd written versions of these linters across various projects over the
+last few years, and I kept finding new smells as I generated more code and text
+over time. Eventually I decided to bundle them all into one tool, so I wouldn't
+have to keep rewriting them haphazardly all over the place — and so other people
+could use it and tell me what other annoying things LLMs tend to do.
+
+Straitjacket has become an exercise in me encoding as much of my personal tastes
+as I can into deterministic checkers I can run across LLM output, hopefully
+saving me the trouble of having to go "Yuck!" myself.
 
 ## Installing
 
@@ -36,7 +57,7 @@ Prebuilt archives for `x86_64` and `aarch64` on Linux and macOS, with a
 source instead:
 
 ```sh
-cargo install --git https://github.com/PowderworksCode/straitjacket
+cargo install straitjacket
 ```
 
 [releases]: https://github.com/PowderworksCode/straitjacket/releases
@@ -44,7 +65,7 @@ cargo install --git https://github.com/PowderworksCode/straitjacket
 ## GitHub Actions
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.0
+- uses: PowderworksCode/straitjacket@v0.1.1
 ```
 
 That installs Straitjacket and scans the checked-out repository, failing the
@@ -58,7 +79,7 @@ permissions:
 
 steps:
   - uses: actions/checkout@v5
-  - uses: PowderworksCode/straitjacket@v0.1.0
+  - uses: PowderworksCode/straitjacket@v0.1.1
     with:
       sarif-file: straitjacket.sarif
       fail-on-findings: "false"
@@ -72,7 +93,7 @@ YAML rather than by assembling an argument string:
 
 | input | default | meaning |
 | --- | --- | --- |
-| `version` | `latest` | Release tag to install, such as `v0.1.0`. |
+| `version` | `latest` | Release tag to install, such as `v0.1.1`. |
 | `paths` | `.` | Files or directories to scan. |
 | `only` | none | Run only these rules. |
 | `skip` | none | Disable these rules. |
@@ -93,14 +114,14 @@ YAML rather than by assembling an argument string:
 these mean the same thing:
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.0
+- uses: PowderworksCode/straitjacket@v0.1.1
   with:
     paths: src tests
     only: color,emoji
 ```
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.0
+- uses: PowderworksCode/straitjacket@v0.1.1
   with:
     paths: |
       src
@@ -222,37 +243,11 @@ appear, which includes Vue, Svelte, and JSX as well as CSS; `deep-nesting` runs
 only on languages that nest executable code; `emoji` runs everywhere except data
 formats.
 
-## Upgrading from an earlier build
-
-Straitjacket used to carry eight more rules — `exact-clone`, `near-clone`,
-`library-opportunity`, `effect-capability`, `effect-barrier`, `unknown-barrier`,
-`error-discard`, and `analysis-incomplete`. Each of them read facts from a
-package that was never published, so none of them could run outside the
-repository that built them. They are gone, along with the `facts sync` and
-`facts status` subcommands and the `[facts]`, `[effects]`, and `[errors]`
-configuration sections.
-
-A configuration that still names one of them fails at startup with a message
-naming the rule. Delete the section or the rule ID and the rest of the file
-keeps working.
-
-## Architecture
-
-Rules emit unsuppressed candidates. The scanner applies suppression once, then
-reporters render the surviving findings. Findings carry related locations and
-ordered evidence paths.
-
-Rule identifiers are static `RuleKey` values owned by inventory registrations.
-Configuration strings resolve against that catalog before scanning; findings,
-suppression, reporting, and generated instructions then share the resolved key.
-Every rule lives under `src/rules` with its generated instruction text and
-submits itself through `inventory`; scanner construction sorts registrations and
-rejects invalid names, duplicate keys, and mismatched factories.
-
-`src/language.rs` holds the language table — extensions, filenames, shebangs,
-comment syntax, and the facets rules select on. `src/walk.rs` is the file walk.
-Adding a language is an entry in that table.
-
 ## License
 
-MIT.
+Code is [MIT](LICENSE).
+
+The banner image (`assets/strait-waistcoat.jpg`) — *Insane patient in a
+strait-waistcoat*, [Wellcome Collection](https://wellcomecollection.org/works/ckwscya3)
+(L0011301) — is licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0)
+and is **not** covered by the MIT license; reuse it under its own terms.

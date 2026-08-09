@@ -55,6 +55,10 @@ would help a future agent. Keep temporary plans and task-specific notes out.
 
 ## Publishing to crates.io
 
+- `Cargo.toml` excludes `assets/*`. The README banner is for the repository
+  page; shipping half a megabyte of JPEG to everyone who depends on the crate
+  is not. `cargo package --list` is the check.
+
 - The publish logic lives in `scripts/publish.sh`, not in the workflow, so the
   one irreversible action in this repository can be run and read by hand. The
   `crate` job is a caller. `scripts/publish.sh --dry-run` also runs in CI on
