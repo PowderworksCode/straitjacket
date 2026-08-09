@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use entl_codebase::{LanguageFacet, LanguageProfile};
+use crate::language::{LanguageFacet, LanguageProfile};
 use regex::{Captures, Regex};
 
 use crate::finding::{Finding, Location, Severity};

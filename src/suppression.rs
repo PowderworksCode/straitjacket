@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use entl_codebase::LanguageProfile;
+use crate::language::LanguageProfile;
 
 use crate::finding::{Finding, Location, Severity};
 use crate::rule::{Candidate, RuleKey};
@@ -273,7 +273,7 @@ fn inside_quote(value: &str, quote: char) -> bool {
 mod tests {
     use std::collections::HashSet;
 
-    use entl_codebase::language_profile;
+    use crate::language::language_profile;
 
     use crate::finding::{Finding, Location, Severity};
     use crate::rule::{Candidate, RuleKey};

@@ -1,4 +1,4 @@
-use entl_codebase::{LanguageProfile, LanguageRole};
+use crate::language::{LanguageProfile, LanguageRole};
 use unic_emoji_char::{is_emoji, is_emoji_presentation};
 
 use crate::Settings;
@@ -22,7 +22,6 @@ inventory::submit! {
     RuleRegistration {
         key: KEY,
         factory: Some(build),
-        repository_factory: None,
         instruction,
     }
 }

@@ -1,8 +1,6 @@
 use crate::finding::Finding;
+use crate::language::LanguageProfile;
 pub use crate::rules::RuleKey;
-use entl_codebase::LanguageProfile;
-use infact_analysis::{AnalysisSelection, FactBatch};
-use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RuleDescriptor {
@@ -55,10 +53,4 @@ pub trait FileRule: Send + Sync {
     fn descriptor(&self) -> RuleDescriptor;
     fn applies_to(&self, language: &LanguageProfile) -> bool;
     fn check(&self, file: SourceFile<'_>, candidates: &mut Vec<Candidate>);
-}
-
-pub trait RepositoryRule: Send + Sync {
-    fn descriptor(&self) -> RuleDescriptor;
-    fn select_analysis(&self, selection: &mut AnalysisSelection);
-    fn check(&self, facts: &FactBatch, display_root: &Path, candidates: &mut Vec<Candidate>);
 }

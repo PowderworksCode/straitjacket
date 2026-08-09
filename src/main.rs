@@ -5,14 +5,13 @@ use std::process::ExitCode;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use entl_codebase::{InventoryOptions, LanguageProfile, walk};
 
-use infact_analysis::EffectResolution;
 use straitjacket::config::{self, Settings};
-use straitjacket::facts::FactRuntime;
 use straitjacket::finding::Severity;
 use straitjacket::instructions;
+use straitjacket::language::LanguageProfile;
 use straitjacket::report::{self, OutputFormat};
+use straitjacket::walk::{SourceFileEntry, WalkOptions, walk};
 use straitjacket::{Finding, PendingFileScan, PendingScan, Scanner};
 
 struct PreparedFile {
@@ -90,27 +89,6 @@ struct Cli {
 enum Command {
     #[command(about = "Print the active repository policy for agents and contributors")]
     Instructions,
-    #[command(about = "Synchronize and inspect locked Infact fact packs")]
-    Facts {
-        #[command(subcommand)]
-        command: FactsCommand,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum FactsCommand {
-    #[command(about = "Resolve configured fact packs into the cache and TOML lock")]
-    Sync {
-        #[arg(long, help = "Verify the lock and cache without registry access")]
-        offline: bool,
-        #[arg(
-            long,
-            help = "Reject missing prebuilt packs instead of generating them"
-        )]
-        prebuilt_only: bool,
-    },
-    #[command(about = "Show locked fact packs and local cache state")]
-    Status,
 }
 
 fn main() -> ExitCode {
@@ -128,61 +106,12 @@ fn run() -> anyhow::Result<ExitCode> {
     let settings = resolve(&cli)?;
     let scanner = Scanner::new(&settings)?;
 
-    match &cli.command {
-        Some(Command::Instructions) => {
-            print!(
-                "{}",
-                instructions::render(&settings, &scanner.enabled_descriptors())?
-            );
-            return Ok(ExitCode::SUCCESS);
-        }
-        Some(Command::Facts {
-            command:
-                FactsCommand::Sync {
-                    offline,
-                    prebuilt_only,
-                },
-        }) => {
-            let runtime = tokio::runtime::Runtime::new()?;
-            let synchronized = runtime.block_on(straitjacket::facts::sync(
-                &settings.facts,
-                *offline,
-                *prebuilt_only,
-            ))?;
-            for pack in synchronized.packs {
-                println!(
-                    "{} {} revision {}  {}",
-                    pack.manifest.name,
-                    pack.manifest.subject.version,
-                    pack.manifest.revision,
-                    pack.manifest_digest
-                );
-            }
-            for unavailable in synchronized.unavailable {
-                eprintln!("straitjacket: no prebuilt fact pack for {unavailable}");
-            }
-            return Ok(ExitCode::SUCCESS);
-        }
-        Some(Command::Facts {
-            command: FactsCommand::Status,
-        }) => {
-            for status in straitjacket::facts::status(&settings.facts)? {
-                println!(
-                    "{} {} revision {}  {}  {}{}",
-                    status.name,
-                    status.version,
-                    status.revision,
-                    status.digest,
-                    if status.cached { "cached" } else { "missing" },
-                    status
-                        .origin
-                        .map(|origin| format!("  {origin}"))
-                        .unwrap_or_default()
-                );
-            }
-            return Ok(ExitCode::SUCCESS);
-        }
-        None => {}
+    if let Some(Command::Instructions) = &cli.command {
+        print!(
+            "{}",
+            instructions::render(&settings, &scanner.enabled_descriptors())?
+        );
+        return Ok(ExitCode::SUCCESS);
     }
 
     if cli.list_rules {
@@ -200,73 +129,30 @@ fn run() -> anyhow::Result<ExitCode> {
     let mut findings = Vec::<Finding>::new();
     let mut scanned = 0usize;
     let mut suppressed = 0usize;
-    let mut effect_resolution = EffectResolution::None;
     let mut seen = BTreeSet::new();
+    let options = WalkOptions {
+        respect_ignore_files: !settings.no_ignore,
+        include_hidden: settings.no_ignore,
+    };
     for requested in &settings.paths {
         let (root, selected_file) = scan_root(requested)?;
-        let tree = walk(
-            &root,
-            &InventoryOptions {
-                respect_gitignore: !settings.no_ignore,
-                respect_global_gitignore: false,
-                respect_parent_ignores: !settings.no_ignore,
-                include_generated: true,
-                include_hidden: settings.no_ignore,
-                ..InventoryOptions::default()
-            },
-        )?;
-        if selected_file.is_none() {
-            reject_incomplete_inventory(&tree, requested)?;
-        }
-        if let Some(selected) = &selected_file {
-            let selected_entry = tree.file(selected).ok_or_else(|| {
-                anyhow::anyhow!(
-                    "selected file was not returned by the walk: {}",
-                    requested.display()
-                )
-            })?;
-            if selected_entry.language.is_none()
-                && let Some(diagnostic) = tree
-                    .diagnostics
-                    .iter()
-                    .find(|diagnostic| diagnostic.path == *selected)
-            {
-                anyhow::bail!(
-                    "inspecting {} at {}: {}",
-                    requested.display(),
-                    diagnostic.path.display(),
-                    diagnostic.message
-                );
-            }
-        }
-
+        let files = walk(&root, &options)?;
+        reject_unscannable_file(&files, selected_file.as_deref(), requested)?;
         let mut prepared = Vec::new();
-        for file in &tree.files {
+        for file in files {
             if selected_file
                 .as_ref()
                 .is_some_and(|selected| file.path != *selected)
             {
                 continue;
             }
-            let absolute = tree.root.join(&file.path);
-            if !seen.insert(absolute) {
+            if !seen.insert(root.join(&file.path)) {
                 continue;
             }
-            let Some(detection) = &file.language else {
-                continue;
-            };
-            let language = detection.profile().ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Entl detected unregistered language `{}` for {}",
-                    detection.language,
-                    file.path.display()
-                )
-            })?;
-            if !scanner.handles_language(language) {
+            if !scanner.handles_language(file.language) {
                 continue;
             }
-            let source = tree
-                .read_text(&file.path)
+            let source = fs::read_to_string(root.join(&file.path))
                 .with_context(|| format!("reading {}", file.path.display()))?;
             let path = if selected_file.is_some() {
                 requested.clone()
@@ -275,41 +161,13 @@ fn run() -> anyhow::Result<ExitCode> {
             };
             scanned += 1;
             let path = display_path(&path);
-            let pending = scanner.collect_language(&source, &path, language);
+            let pending = scanner.collect_language(&source, &path, file.language);
             prepared.push(PreparedFile {
                 text: source,
                 path,
-                language,
+                language: file.language,
                 pending,
             });
-        }
-
-        let mut repository_candidates = Vec::new();
-        if scanner.has_enabled_repository_rules() {
-            let selection = scanner.analysis_selection();
-            let runtime = FactRuntime::load(&settings.facts, &selection)?;
-            let facts = runtime.analyze(&root, &selection)?;
-            effect_resolution = facts.effect_resolution;
-            let display_root = if selected_file.is_some() {
-                requested
-                    .parent()
-                    .filter(|parent| !parent.as_os_str().is_empty())
-                    .unwrap_or_else(|| Path::new("."))
-            } else {
-                requested.as_path()
-            };
-            for mut candidate in scanner.repository_candidates(&facts, display_root) {
-                normalize_finding_paths(&mut candidate.finding);
-                for location in &mut candidate.suppression_locations {
-                    location.path = display_path(Path::new(&location.path));
-                }
-                if prepared
-                    .iter()
-                    .any(|file| file.path == candidate.finding.location.path)
-                {
-                    repository_candidates.push(candidate);
-                }
-            }
         }
 
         let pending = prepared
@@ -321,7 +179,7 @@ fn run() -> anyhow::Result<ExitCode> {
                 pending: &file.pending,
             })
             .collect();
-        let result = scanner.finish_repository(pending, repository_candidates);
+        let result = scanner.finish_repository(pending);
         suppressed += result.suppressed;
         findings.extend(result.findings);
     }
@@ -356,9 +214,6 @@ fn run() -> anyhow::Result<ExitCode> {
             .with_context(|| format!("writing SARIF report to {}", path.display()))?;
     }
 
-    if settings.format == OutputFormat::Text {
-        disclose_effect_resolution(effect_resolution);
-    }
     if settings.format == OutputFormat::Text && !findings.is_empty() {
         let errors = findings
             .iter()
@@ -406,50 +261,25 @@ fn display_path(path: &Path) -> String {
     value.strip_prefix("./").unwrap_or(&value).to_string()
 }
 
-fn normalize_finding_paths(finding: &mut Finding) {
-    finding.location.path = display_path(Path::new(&finding.location.path));
-    for related in &mut finding.related {
-        related.location.path = display_path(Path::new(&related.location.path));
-    }
-    for evidence in &mut finding.evidence {
-        evidence.location.path = display_path(Path::new(&evidence.location.path));
-    }
-}
-
-/// Say when a clean effect report is a weaker claim than it looks.
+/// Refuse to report clean on a file that was never read.
 ///
-/// A report with no effect findings means one thing when calls were resolved
-/// and something much weaker when they were guessed, and nothing in the
-/// findings themselves says which. This is most worth saying when the report is
-/// clean, so it is not tied to having found anything.
-fn disclose_effect_resolution(resolution: EffectResolution) {
-    if resolution != EffectResolution::Syntax {
-        return;
-    }
-    eprintln!(
-        "straitjacket: effects were resolved from syntax, which cannot follow a call written through an import; supply [facts].observations for a complete answer"
-    );
-}
-
-/// Refuse to scan a tree Entl could not fully read.
-///
-/// Entl records what it could not read, and every kind is escalated, not just
-/// walk failures: an unreadable manifest silently shrinks the package,
-/// workspace, and ecosystem facts that rules are scoped by, and a scan over
-/// less than the repository must not be able to report clean.
-fn reject_incomplete_inventory(
-    tree: &entl_codebase::CodebaseTree,
+/// Naming a single file says to scan it. When the walk does not return it the
+/// scan covers nothing, and a silent success there is indistinguishable from a
+/// file that passed every rule.
+fn reject_unscannable_file(
+    files: &[SourceFileEntry],
+    selected: Option<&Path>,
     requested: &Path,
 ) -> anyhow::Result<()> {
-    let Some(diagnostic) = tree.diagnostics.first() else {
+    let Some(selected) = selected else {
         return Ok(());
     };
+    if files.iter().any(|file| file.path == selected) {
+        return Ok(());
+    }
     anyhow::bail!(
-        "inspecting {} at {}: {} ({:?})",
-        requested.display(),
-        diagnostic.path.display(),
-        diagnostic.message,
-        diagnostic.kind
+        "nothing to scan in {}: it is excluded by an ignore file, or written in a language Straitjacket does not know",
+        requested.display()
     )
 }
 

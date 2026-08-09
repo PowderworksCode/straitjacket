@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use entl_codebase::LanguageProfile;
+use crate::language::LanguageProfile;
 
 use crate::Settings;
 use crate::finding::{Finding, Location, Severity};
@@ -48,7 +48,6 @@ inventory::submit! {
     RuleRegistration {
         key: KEY,
         factory: Some(build),
-        repository_factory: None,
         instruction,
     }
 }

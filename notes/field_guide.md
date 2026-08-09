@@ -4,39 +4,41 @@ Read this before changing the repository. Add concise entries when work reveals
 a durable constraint, a non-obvious convention, or a recurring failure mode that
 would help a future agent. Keep temporary plans and task-specific notes out.
 
-## The widest dependency surface in the fleet
+## Standing on its own
 
-- Straitjacket builds both Entl and infact from source, through Cargo `path`
-  dependencies on sibling checkouts. CI therefore checks out three repositories
-  side by side, so that `../entl` and `../infact` resolve the way they do in a
-  local `powderworks/` checkout:
+- Straitjacket depends only on published crates. It previously took Cargo `path`
+  dependencies on sibling `entl` and `infact` checkouts, which meant it could
+  not build anywhere except a full `powderworks/` tree. Do not reintroduce a
+  path dependency; if something here needs a sibling crate, that is a signal the
+  feature belongs in the sibling, not here.
+- `src/language.rs` is the whole language model: extensions, filenames,
+  shebangs, comment syntax, and the facets rules select on. It replaced
+  `entl-codebase`. Adding a language is an entry in the table, and a test
+  asserts no two languages claim the same extension.
+- `src/walk.rs` is the file walk, over the `ignore` crate. A walk error is
+  returned rather than skipped, because a scan over less than the requested tree
+  must not be able to report clean.
 
-  ```
-  $GITHUB_WORKSPACE/straitjacket
-  $GITHUB_WORKSPACE/entl
-  $GITHUB_WORKSPACE/infact
-  ```
+## Rules
 
-- Both sibling checkouts are **unpinned** — they track those repositories'
-  default branches. A change in either can break this build with nothing landing
-  here, and the weekly scheduled run exists partly to surface that between pull
-  requests. When CI fails and nothing here changed, check what moved in Entl
-  and infact first.
-- `Cargo.lock` picks up crates that appear in the siblings, so a lockfile-only
-  diff here is usually the sibling growing a crate rather than a change of
-  intent.
+- Every rule is lexical. Nothing parses, resolves a type, or follows a call.
+  Rules that needed more than that were removed rather than weakened, and
+  `src/rules/mod.rs::REMOVED` lists them so an old configuration fails saying
+  the rule was withdrawn instead of saying the key is unknown.
+- `color`, `inline-font`, `inline-svg`, and `motion` are `RegexRule`s gated on a
+  language facet (`STYLE_HOST`, `COMPONENT_HOST`). A language without the facet
+  correctly produces nothing: a hex string in Python is not a CSS color, and
+  giving Python a style facet would make every hex string in every Python file a
+  finding.
+- Rules self-register through `inventory`, so no core file names a rule. Adding
+  or deleting one touches only its own file and `src/rules/mod.rs`.
 
-## Analysis
+## Its own policy
 
-- Clone detection runs through Entl's `parse_repository`, which walks the whole
-  repository, not just the files a rule targets.
-- `exact-clones` is off in this repository's own `straitjacket.toml`. Turning it
-  on means every recognized language in the tree is parsed, so a language with
-  no parser pack surfaces as `analysis-incomplete`. That is how a missing pack
-  becomes a test failure here rather than in Entl.
-- `parser-paths` in the config points at `../entl/parser-packs`. Tests that
-  construct a config write that path explicitly, so they depend on the sibling
-  checkout existing.
+- Straitjacket runs its full ruleset on itself and is clean. `no-comments` is ON
+  here, which is worth knowing before adding code: an ordinary `//` inside a
+  function body is a finding. Explanations go in doc comments, and test
+  commentary goes in assert messages.
 
 ## Fleet
 

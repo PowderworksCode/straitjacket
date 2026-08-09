@@ -9,12 +9,6 @@ on:
     paths-ignore:
       - "**.md"
       - "notes/**"
-  # Periodic coverage, so bitrot between changes surfaces on its own. This
-  # matters more here than elsewhere: the sibling checkouts below are unpinned,
-  # so an entl or infact change can break this build without anything landing in
-  # straitjacket.
-  schedule:
-    - cron: "17 4 * * 1"
 
 # Least privilege. A job that needs to write grants it explicitly.
 permissions:
@@ -24,31 +18,10 @@ jobs:
   gate:
     name: gate
     runs-on: ubuntu-latest
-    # The widest dependency surface in the fleet: straitjacket builds entl and
-    # infact from source. The cache below makes the usual run far shorter.
-    timeout-minutes: 60
-    defaults:
-      run:
-        working-directory: straitjacket
+    timeout-minutes: 20
     steps:
-      # Straitjacket depends on entl and infact through Cargo `path`
-      # dependencies, so all three repositories are checked out side by side and
-      # `../entl` and `../infact` resolve the same way they do in a local
-      # powderworks checkout.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          path: straitjacket
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: PowderworksCode/entl
-          path: entl
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: PowderworksCode/infact
-          path: infact
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-        with:
-          workspaces: straitjacket
       # The toolchain comes from rust-toolchain.toml, which rustup installs on
       # first use, so no setup action decides the version.
       - run: cargo fmt --all --check
