@@ -1,7 +1,7 @@
 # straitjacket-allow-file:no-comments — an action definition is interface, read
 # by people wiring it into a workflow, and YAML has no documentation-comment
 # syntax to hoist the reasoning into.
-name: Straitjacket
+name: PowderworksCode/Straitjacket
 description: Scan a repository with Straitjacket and fail the build on findings.
 author: Powderworks
 
