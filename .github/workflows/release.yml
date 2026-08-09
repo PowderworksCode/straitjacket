@@ -110,3 +110,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: gh release edit "$TAG" --draft=false --latest
+
+  # Install the release that was just published, on every supported platform,
+  # through both the script and the action. Called rather than triggered: a
+  # release published by GITHUB_TOKEN raises no event that starts a workflow.
+  smoke:
+    needs: publish
+    permissions:
+      contents: read
+    uses: ./.github/workflows/install-smoke.yml
+    with:
+      version: ${{ inputs.tag || github.ref_name }}

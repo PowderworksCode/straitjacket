@@ -1,12 +1,19 @@
 name: install-smoke
 
 # Proof that the published artifacts work, run against a real release rather
-# than a simulation of one. It fires after a release is published, which is the
-# first moment the download URLs exist, and can be re-run by hand against any
-# tag.
+# than a simulation of one.
+#
+# This is called by the release workflow rather than triggered by
+# `release: published`, because an event raised by GITHUB_TOKEN does not start
+# another workflow run — a `release` trigger here would never fire at all.
 on:
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      version:
+        description: Release tag to install, or `latest`
+        required: false
+        type: string
+        default: latest
   workflow_dispatch:
     inputs:
       version:
@@ -26,11 +33,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # `x && '' || y` yields y in a GitHub expression, because the empty string
+      # is falsy, so the version is cleared in the shell instead.
       - name: Install with the published script
         env:
-          STRAITJACKET_VERSION: ${{ inputs.version == 'latest' && '' || inputs.version }}
+          VERSION: ${{ inputs.version }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: sh install.sh
+        run: |
+          if [ -n "${VERSION}" ] && [ "${VERSION}" != "latest" ]; then
+            export STRAITJACKET_VERSION="${VERSION}"
+          fi
+          sh install.sh
       - name: The installed binary runs and scans
         run: |
           export PATH="$HOME/.local/bin:$PATH"
