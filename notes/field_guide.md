@@ -19,6 +19,28 @@ would help a future agent. Keep temporary plans and task-specific notes out.
   returned rather than skipped, because a scan over less than the requested tree
   must not be able to report clean.
 
+## Distribution
+
+- `.cargo/config.toml` links both `*-unknown-linux-musl` targets with `rust-lld`
+  against a self-contained musl. That is what lets `cargo build --release
+  --target aarch64-unknown-linux-musl` cross-compile from an ordinary x86_64
+  host with no cross toolchain, container, or apt package, and it is why the
+  release workflow is one plain `cargo build` per target. Reproduce a release
+  binary locally with exactly that command.
+- The release workflow creates a **draft**, uploads every archive, computes
+  `SHA256SUMS` from what the release actually holds, and only then publishes.
+  A draft is not returned by the `releases/latest` endpoint, so `install.sh`
+  can never resolve a half-uploaded release. Do not reorder those steps.
+- The asset name `straitjacket-<tag>-<target>.tar.gz` is a contract between the
+  release workflow and `install.sh`. Changing it in one place breaks every
+  existing installer invocation.
+- `install.sh` and `action.yml` carry `straitjacket-allow-file:no-comments`.
+  Neither `sh` nor YAML has a documentation-comment syntax to hoist reasoning
+  into, and both files are interface that people read before trusting. That is
+  the reason; do not extend the marker to implementation source.
+- CI builds the musl release target on every run. A release build that only
+  breaks when a tag is pushed is discovered too late to fix quietly.
+
 ## Rules
 
 - Every rule is lexical. Nothing parses, resolves a type, or follows a call.

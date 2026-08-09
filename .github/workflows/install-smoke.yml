@@ -1,0 +1,60 @@
+name: install-smoke
+
+# Proof that the published artifacts work, run against a real release rather
+# than a simulation of one. It fires after a release is published, which is the
+# first moment the download URLs exist, and can be re-run by hand against any
+# tag.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag to install, or `latest`
+        required: false
+        default: latest
+
+permissions:
+  contents: read
+
+jobs:
+  install-script:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install with the published script
+        env:
+          STRAITJACKET_VERSION: ${{ inputs.version == 'latest' && '' || inputs.version }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: sh install.sh
+      - name: The installed binary runs and scans
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          straitjacket --version
+          straitjacket --list-rules
+          straitjacket .
+
+  action:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Scan this repository with the action
+        id: scan
+        uses: ./
+        with:
+          version: ${{ inputs.version || 'latest' }}
+          paths: .
+          sarif-file: straitjacket.sarif
+          token: ${{ github.token }}
+      - name: The action reported its exit code and wrote SARIF
+        run: |
+          test "${{ steps.scan.outputs.exit-code }}" = "0"
+          test -s straitjacket.sarif

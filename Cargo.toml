@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 description = "An opinionated source scanner with deterministic findings for CI."
 license = "MIT"
+repository = "https://github.com/PowderworksCode/straitjacket"
+readme = "README.md"
 
 [[bin]]
 name = "straitjacket"
