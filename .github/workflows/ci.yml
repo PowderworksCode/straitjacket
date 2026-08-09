@@ -34,3 +34,7 @@ jobs:
       # only discovered when a tag is pushed and it is too late to fix quietly.
       - run: rustup target add x86_64-unknown-linux-musl
       - run: cargo build --release --locked --target x86_64-unknown-linux-musl
+      # The publish path runs on every change, uploading nothing. Otherwise it
+      # is first exercised by the tag that publishes, which is the one moment
+      # a mistake cannot be taken back.
+      - run: scripts/publish.sh --dry-run
