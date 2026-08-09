@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use entl_codebase::LanguageProfile;
+use crate::language::LanguageProfile;
 
 use crate::Settings;
 use crate::finding::{Finding, Location, Severity};
@@ -47,7 +47,6 @@ inventory::submit! {
     RuleRegistration {
         key: KEY,
         factory: Some(build),
-        repository_factory: None,
         instruction,
     }
 }
@@ -144,7 +143,7 @@ fn markers_by_char(text: &str) -> Vec<(usize, &'static str)> {
 
 #[cfg(test)]
 mod tests {
-    use entl_codebase::language_profile;
+    use crate::language::language_profile;
 
     use crate::rule::{Candidate, FileRule, SourceFile};
 

@@ -1,29 +1,21 @@
-mod analysis_incomplete;
 mod color;
 mod comments;
 mod deep_nesting;
-mod effect_barrier;
-mod effect_capability;
 mod emoji;
-mod error_discard;
-mod exact_clone;
 mod file_size;
 mod inline_font;
 mod inline_svg;
 mod key;
-mod library_opportunity;
 mod motion;
-mod near_clone;
 mod no_comments;
 mod regex_rule;
 mod stray_todo;
-mod unknown_barrier;
 mod unused_marker;
 
 use anyhow::bail;
 
 use crate::config::Settings;
-use crate::rule::{FileRule, RepositoryRule};
+use crate::rule::FileRule;
 
 pub use key::RuleKey;
 
@@ -32,13 +24,11 @@ pub use emoji::EmojiRule;
 pub use file_size::FileSizeRule;
 
 pub type RuleFactory = fn(&Settings) -> Box<dyn FileRule>;
-pub type RepositoryRuleFactory = fn(&Settings) -> Box<dyn RepositoryRule>;
 pub type RuleInstruction = fn(&Settings) -> String;
 
 pub struct RuleRegistration {
     pub key: RuleKey,
     pub factory: Option<RuleFactory>,
-    pub repository_factory: Option<RepositoryRuleFactory>,
     pub instruction: RuleInstruction,
 }
 
@@ -87,26 +77,6 @@ pub fn builtins(settings: &Settings) -> anyhow::Result<Vec<Box<dyn FileRule>>> {
     Ok(rules)
 }
 
-pub fn repository_builtins(settings: &Settings) -> anyhow::Result<Vec<Box<dyn RepositoryRule>>> {
-    let registrations = registrations()?;
-    let mut rules = Vec::new();
-    for registration in registrations {
-        let Some(factory) = registration.repository_factory else {
-            continue;
-        };
-        let rule = factory(settings);
-        if rule.descriptor().id != registration.key {
-            bail!(
-                "rule inventory registered {} but repository factory built {}",
-                registration.key,
-                rule.descriptor().id
-            );
-        }
-        rules.push(rule);
-    }
-    Ok(rules)
-}
-
 pub fn instruction(key: RuleKey, settings: &Settings) -> anyhow::Result<String> {
     let registration = registrations()?
         .into_iter()
@@ -115,9 +85,27 @@ pub fn instruction(key: RuleKey, settings: &Settings) -> anyhow::Result<String> 
     Ok((registration.instruction)(settings))
 }
 
+/// Rules Straitjacket used to have.
+///
+/// Every one of them read facts from a pack that was never published, so none
+/// of them could run outside the repository that built them. They are listed
+/// so that a configuration naming one fails saying the rule was withdrawn,
+/// rather than saying the key is unknown, which reads like a typo.
+pub const REMOVED: &[&str] = &[
+    "analysis-incomplete",
+    "effect-barrier",
+    "effect-capability",
+    "error-discard",
+    "exact-clone",
+    "library-opportunity",
+    "near-clone",
+    "unknown-barrier",
+];
+
 pub fn resolve(names: &[String]) -> anyhow::Result<Vec<RuleKey>> {
     let registrations = registrations()?;
     let mut resolved = Vec::with_capacity(names.len());
+    let mut removed = Vec::new();
     let mut unknown = Vec::new();
     for name in names {
         match registrations
@@ -125,8 +113,15 @@ pub fn resolve(names: &[String]) -> anyhow::Result<Vec<RuleKey>> {
             .find(|registration| registration.key.as_str() == name)
         {
             Some(registration) => resolved.push(registration.key),
+            None if REMOVED.contains(&name.as_str()) => removed.push(name.as_str()),
             None => unknown.push(name.as_str()),
         }
+    }
+    if !removed.is_empty() {
+        bail!(
+            "rule(s) Straitjacket no longer has: {}. Remove them from the configuration.",
+            removed.join(", ")
+        );
     }
     if !unknown.is_empty() {
         bail!("unknown rule key(s): {}", unknown.join(", "));

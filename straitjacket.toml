@@ -1,7 +1,2 @@
 no-comments = true
 file-size-exclude = ["notes/"]
-
-[facts]
-parser-paths = ["../entl/parser-packs"]
-
-[errors]

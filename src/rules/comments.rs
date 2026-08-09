@@ -1,4 +1,4 @@
-use entl_codebase::LanguageProfile;
+use crate::language::LanguageProfile;
 
 pub struct CommentPart {
     pub line: usize,

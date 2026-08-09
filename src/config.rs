@@ -1,10 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use directories::ProjectDirs;
-use globset::Glob;
-use infact_core::{DiscardForm, Effect};
-use infact_duplication::{ExactConfig, NearConfig};
 use serde::Deserialize;
 
 use crate::report::OutputFormat;
@@ -12,241 +8,6 @@ use crate::report::OutputFormat;
 pub const CONFIG_NAME: &str = "straitjacket.toml";
 pub const DEFAULT_MAX_LINES: usize = 1_500;
 pub const DEFAULT_MAX_NESTING: usize = 8;
-
-#[derive(Debug, Default, Clone, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct FactFileConfig {
-    pub cache: Option<String>,
-    pub lock: Option<String>,
-    pub parser_paths: Option<Vec<String>>,
-    pub registries: Option<Vec<String>>,
-    pub dependencies: Option<DependencySelection>,
-    pub build_missing: Option<bool>,
-    pub exact_clones: Option<bool>,
-    pub near_clones: Option<bool>,
-    pub clone_exclude: Option<Vec<String>>,
-    pub observations: Option<String>,
-    #[serde(default)]
-    pub builders: Vec<FactBuilderFileConfig>,
-    #[serde(default)]
-    pub exact: ExactFactFileConfig,
-    #[serde(default)]
-    pub near: NearFactFileConfig,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct FactBuilderFileConfig {
-    pub ecosystem: String,
-    pub command: Vec<String>,
-}
-
-#[derive(Debug, Default, Clone, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct ExactFactFileConfig {
-    pub min_tokens: Option<u32>,
-    pub min_lines: Option<u32>,
-}
-
-#[derive(Debug, Default, Clone, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct NearFactFileConfig {
-    pub min_tokens: Option<u32>,
-    pub min_lines: Option<u32>,
-    pub normalize_identifiers: Option<bool>,
-    pub normalize_literals: Option<bool>,
-    pub max_changed_percent: Option<u8>,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum UnlistedEffectPolicy {
-    Allow,
-    #[default]
-    Deny,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum IncompleteEffectPolicy {
-    #[default]
-    Error,
-    Warn,
-    Ignore,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct EffectCapability {
-    pub name: String,
-    #[serde(default)]
-    pub includes: Vec<Effect>,
-    #[serde(default)]
-    pub provided_by: Vec<String>,
-    #[serde(default)]
-    pub available_to: Vec<String>,
-}
-
-/// Which discarded-error forms a repository refuses to carry.
-///
-/// The analyzer reports every form it can see. This decides which ones are
-/// findings, because a repository that returns `Option` on purpose and one
-/// that meant to return `Result` look identical in syntax.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct ErrorSettings {
-    /// Forms that are findings wherever they appear.
-    #[serde(default = "default_denied_forms")]
-    pub deny: Vec<DiscardForm>,
-    /// Whether to report forms that syntax cannot prove are `Result`.
-    #[serde(default)]
-    pub ambiguous: AmbiguousPolicy,
-    /// Whether a discard inside a test is a finding.
-    #[serde(default)]
-    pub tests: TestPolicy,
-    /// Paths permitted to discard, such as a top-level reporter.
-    #[serde(default)]
-    pub allowed_in: Vec<String>,
-}
-
-fn default_denied_forms() -> Vec<DiscardForm> {
-    vec![
-        DiscardForm::LetUnderscore,
-        DiscardForm::OkDiscard,
-        DiscardForm::ErrArm,
-        DiscardForm::OkBinding,
-        DiscardForm::IteratorDrop,
-    ]
-}
-
-impl Default for ErrorSettings {
-    fn default() -> Self {
-        Self {
-            deny: default_denied_forms(),
-            ambiguous: AmbiguousPolicy::default(),
-            tests: TestPolicy::default(),
-            allowed_in: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum AmbiguousPolicy {
-    /// Report only forms that name `Result`, `Ok`, or `Err`.
-    #[default]
-    Skip,
-    /// Report forms that read the same on `Option`, as warnings.
-    Warn,
-    /// Treat an unresolved receiver as a discard.
-    Error,
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum TestPolicy {
-    #[default]
-    Ignore,
-    Warn,
-    Error,
-}
-
-/// A callable past which an effect may not travel.
-///
-/// A capability answers where an effect may live, which is a question about
-/// paths. This answers what one callable may reach, which is a question about
-/// the call graph, and no arrangement of files settles it: a hot loop may call
-/// anything in the repository and still must not allocate.
-///
-/// The barrier is declared in source rather than in configuration because the
-/// callable is what carries it. A path pattern goes stale the moment the
-/// function moves; a comment on the function does not.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct EffectBarrier {
-    /// The barrier's name, which names its marker: a barrier named `hot-loop`
-    /// is declared on a callable by a `barrier:hot-loop` comment, spelled in
-    /// full by [`EffectBarrier::marker`].
-    pub name: String,
-    /// Effects that may not be reached from a callable carrying the marker,
-    /// directly or through any call below it.
-    #[serde(default)]
-    pub denies: Vec<Effect>,
-}
-
-impl EffectBarrier {
-    /// The comment that puts this barrier on a callable.
-    ///
-    /// Barriers share the directive namespace with suppression, so the name
-    /// goes after `barrier:` rather than directly after `straitjacket-`. A
-    /// barrier called `allow` would otherwise mint `straitjacket-allow` and
-    /// collide with every suppression marker in the repository.
-    pub fn marker(&self) -> String {
-        format!("straitjacket-barrier:{}", self.name) // straitjacket-allow:unknown-barrier — this builds the marker
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case", deny_unknown_fields)]
-pub struct EffectSettings {
-    #[serde(default)]
-    pub unlisted: UnlistedEffectPolicy,
-    #[serde(default)]
-    pub incomplete: IncompleteEffectPolicy,
-    #[serde(default)]
-    pub capabilities: Vec<EffectCapability>,
-    #[serde(default)]
-    pub barriers: Vec<EffectBarrier>,
-}
-
-impl Default for EffectSettings {
-    fn default() -> Self {
-        Self {
-            unlisted: UnlistedEffectPolicy::Deny,
-            incomplete: IncompleteEffectPolicy::Error,
-            capabilities: Vec::new(),
-            barriers: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DependencySelection {
-    #[default]
-    Automatic,
-    None,
-}
-
-#[derive(Debug, Clone)]
-pub struct FactSettings {
-    pub repository_root: PathBuf,
-    pub cache: PathBuf,
-    pub lock: PathBuf,
-    pub parser_paths: Vec<PathBuf>,
-    pub registries: Vec<String>,
-    pub dependencies: DependencySelection,
-    pub build_missing: bool,
-    pub exact_clones: bool,
-    pub near_clones: bool,
-    pub clone_exclude: Vec<PathBuf>,
-    /// Where a language provider left its resolved semantic observations.
-    ///
-    /// Analysis uses them when present and falls back to syntax when not, so a
-    /// repository that will not compile, or a language with no provider, still
-    /// gets scanned.
-    pub observations: Option<PathBuf>,
-    pub builders: Vec<FactBuilder>,
-    pub exact: ExactConfig,
-    pub near: NearConfig,
-    pub require_call_effects: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct FactBuilder {
-    pub ecosystem: String,
-    pub command: Vec<String>,
-}
 
 #[derive(Debug, Default, Clone, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
@@ -265,10 +26,15 @@ pub struct FileConfig {
     pub no_ignore: Option<bool>,
     pub no_fail: Option<bool>,
     pub fail_on_unused_markers: Option<bool>,
+    /// Sections that configured rules Straitjacket no longer has. They are
+    /// accepted by the parser only so that [`reject_removed_sections`] can
+    /// name the rule that went away.
     #[serde(default)]
-    pub facts: FactFileConfig,
-    pub effects: Option<EffectSettings>,
-    pub errors: Option<ErrorSettings>,
+    pub facts: Option<toml::Value>,
+    #[serde(default)]
+    pub effects: Option<toml::Value>,
+    #[serde(default)]
+    pub errors: Option<toml::Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -288,9 +54,6 @@ pub struct Settings {
     pub no_ignore: bool,
     pub no_fail: bool,
     pub fail_on_unused_markers: bool,
-    pub facts: FactSettings,
-    pub effects: Option<EffectSettings>,
-    pub errors: Option<ErrorSettings>,
 }
 
 impl Default for Settings {
@@ -311,25 +74,6 @@ impl Default for Settings {
             no_ignore: false,
             no_fail: false,
             fail_on_unused_markers: true,
-            facts: FactSettings {
-                repository_root: PathBuf::from("."),
-                cache: default_fact_cache(),
-                lock: PathBuf::from("straitjacket.lock.toml"),
-                parser_paths: Vec::new(),
-                registries: vec!["ghcr.io/zmaril/infact-facts".to_owned()],
-                dependencies: DependencySelection::Automatic,
-                build_missing: false,
-                exact_clones: false,
-                near_clones: false,
-                clone_exclude: Vec::new(),
-                observations: None,
-                builders: Vec::new(),
-                exact: ExactConfig::default(),
-                near: NearConfig::default(),
-                require_call_effects: false,
-            },
-            effects: None,
-            errors: None,
         }
     }
 }
@@ -341,7 +85,6 @@ impl Settings {
 
     pub fn apply_file_at(mut self, file: FileConfig, root: &Path) -> Self {
         self.config_root = root.to_path_buf();
-        self.facts.repository_root = root.to_path_buf();
         if let Some(paths) = file.paths {
             self.paths = paths.into_iter().map(PathBuf::from).collect();
         }
@@ -384,179 +127,38 @@ impl Settings {
         if let Some(value) = file.fail_on_unused_markers {
             self.fail_on_unused_markers = value;
         }
-        let facts = file.facts;
-        if let Some(path) = facts.cache {
-            self.facts.cache = resolve_path(root, path);
-        }
-        self.facts.lock = facts
-            .lock
-            .map(|path| resolve_path(root, path))
-            .unwrap_or_else(|| root.join("straitjacket.lock.toml"));
-        if let Some(paths) = facts.parser_paths {
-            self.facts.parser_paths = paths
-                .into_iter()
-                .map(|path| resolve_path(root, path))
-                .collect();
-        }
-        if let Some(registries) = facts.registries {
-            self.facts.registries = registries;
-        }
-        if let Some(dependencies) = facts.dependencies {
-            self.facts.dependencies = dependencies;
-        }
-        if let Some(build_missing) = facts.build_missing {
-            self.facts.build_missing = build_missing;
-        }
-        if let Some(enabled) = facts.exact_clones {
-            self.facts.exact_clones = enabled;
-        }
-        if let Some(enabled) = facts.near_clones {
-            self.facts.near_clones = enabled;
-        }
-        if let Some(observations) = facts.observations {
-            self.facts.observations = Some(resolve_path(root, observations));
-        }
-        if let Some(paths) = facts.clone_exclude {
-            self.facts.clone_exclude = paths
-                .into_iter()
-                .map(|path| resolve_path(root, path))
-                .collect();
-        }
-        self.facts.builders = facts
-            .builders
-            .into_iter()
-            .map(|builder| FactBuilder {
-                ecosystem: builder.ecosystem,
-                command: builder.command,
-            })
-            .collect();
-        let exact_defaults = self.facts.exact;
-        self.facts.exact = ExactConfig {
-            min_tokens: facts.exact.min_tokens.unwrap_or(exact_defaults.min_tokens),
-            min_lines: facts.exact.min_lines.unwrap_or(exact_defaults.min_lines),
-        };
-        let near_defaults = self.facts.near;
-        self.facts.near = NearConfig {
-            min_tokens: facts.near.min_tokens.unwrap_or(near_defaults.min_tokens),
-            min_lines: facts.near.min_lines.unwrap_or(near_defaults.min_lines),
-            normalize_identifiers: facts
-                .near
-                .normalize_identifiers
-                .unwrap_or(near_defaults.normalize_identifiers),
-            normalize_literals: facts
-                .near
-                .normalize_literals
-                .unwrap_or(near_defaults.normalize_literals),
-            max_changed_percent: facts
-                .near
-                .max_changed_percent
-                .unwrap_or(near_defaults.max_changed_percent),
-        };
-        self.effects = file.effects;
-        self.facts.require_call_effects = self.effects.is_some();
-        self.errors = file.errors;
         self
     }
-
-    /// Reject a configuration that would scan less than it appears to.
-    ///
-    /// A lock that will not parse otherwise reads as "no packs", which
-    /// silently turns every fact-backed rule into a no-op, so it is read once
-    /// here, where the failure can still stop the run.
-    pub fn validate(&self) -> anyhow::Result<()> {
-        infact_fact_pack::FactPackLock::read_or_default(&self.facts.lock)
-            .with_context(|| format!("reading fact lock {}", self.facts.lock.display()))?;
-        if let Some(errors) = &self.errors {
-            for pattern in &errors.allowed_in {
-                Glob::new(pattern).with_context(|| {
-                    format!("invalid path pattern `{pattern}` in [errors].allowed-in")
-                })?;
-            }
-        }
-        let Some(effects) = &self.effects else {
-            return Ok(());
-        };
-        let mut names = std::collections::BTreeSet::new();
-        let mut included = std::collections::BTreeMap::new();
-        for capability in &effects.capabilities {
-            if capability.name.trim().is_empty() {
-                anyhow::bail!("effect capability name cannot be empty");
-            }
-            if !names.insert(capability.name.as_str()) {
-                anyhow::bail!("duplicate effect capability `{}`", capability.name);
-            }
-            if capability.includes.is_empty() {
-                anyhow::bail!(
-                    "effect capability `{}` must include at least one effect",
-                    capability.name
-                );
-            }
-            if capability.provided_by.is_empty() {
-                anyhow::bail!(
-                    "effect capability `{}` must have at least one provided-by path",
-                    capability.name
-                );
-            }
-            for effect in &capability.includes {
-                if let Some(previous) = included.insert(*effect, capability.name.as_str()) {
-                    anyhow::bail!(
-                        "effect `{}` is included by both `{previous}` and `{}`",
-                        effect.as_str(),
-                        capability.name
-                    );
-                }
-            }
-            for pattern in capability
-                .provided_by
-                .iter()
-                .chain(&capability.available_to)
-            {
-                Glob::new(pattern).with_context(|| {
-                    format!(
-                        "invalid path pattern `{pattern}` in effect capability `{}`",
-                        capability.name
-                    )
-                })?;
-            }
-        }
-        let mut barriers = std::collections::BTreeSet::new();
-        for barrier in &effects.barriers {
-            let name = barrier.name.trim();
-            if name.is_empty() {
-                anyhow::bail!("effect barrier name cannot be empty");
-            }
-            if !name
-                .bytes()
-                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
-            {
-                anyhow::bail!(
-                    "effect barrier `{name}` must use lowercase letters, digits, and dashes, because the name is also its source marker"
-                );
-            }
-            if !barriers.insert(name) {
-                anyhow::bail!("duplicate effect barrier `{name}`");
-            }
-            if barrier.denies.is_empty() {
-                anyhow::bail!("effect barrier `{name}` must deny at least one effect");
-            }
-        }
-        Ok(())
-    }
 }
 
-fn resolve_path(root: &Path, path: String) -> PathBuf {
-    let path = PathBuf::from(path);
-    if path.is_absolute() {
-        path
-    } else {
-        root.join(path)
+/// Refuse a configuration written for a Straitjacket that had more rules.
+///
+/// `deny_unknown_fields` would already reject these, but it would report an
+/// unknown key, which reads like a typo. The rules were withdrawn on purpose
+/// and the message has to say so, because deleting the section is the fix.
+fn reject_removed_sections(file: &FileConfig, path: &Path) -> anyhow::Result<()> {
+    let sections = [
+        (
+            "facts",
+            file.facts.is_some(),
+            "exact-clone, near-clone and library-opportunity",
+        ),
+        (
+            "effects",
+            file.effects.is_some(),
+            "effect-barrier and effect-capability",
+        ),
+        ("errors", file.errors.is_some(), "error-discard"),
+    ];
+    for (name, present, rules) in sections {
+        if present {
+            anyhow::bail!(
+                "{}: [{name}] configures {rules}, which Straitjacket no longer has. Delete the section.",
+                path.display()
+            );
+        }
     }
-}
-
-fn default_fact_cache() -> PathBuf {
-    ProjectDirs::from("dev", "Powderworks", "straitjacket")
-        .map(|directories| directories.cache_dir().join("facts"))
-        .unwrap_or_else(|| PathBuf::from(".straitjacket/facts"))
+    Ok(())
 }
 
 pub fn find_config(start: &Path) -> Option<PathBuf> {
@@ -572,19 +174,17 @@ pub fn find_config(start: &Path) -> Option<PathBuf> {
 pub fn load_config(path: &Path) -> anyhow::Result<FileConfig> {
     let source = std::fs::read_to_string(path)
         .with_context(|| format!("reading configuration {}", path.display()))?;
-    toml::from_str(&source)
-        .with_context(|| format!("parsing TOML configuration {}", path.display()))
+    let file: FileConfig = toml::from_str(&source)
+        .with_context(|| format!("parsing TOML configuration {}", path.display()))?;
+    reject_removed_sections(&file, path)?;
+    Ok(file)
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::Path;
 
-    use infact_core::Effect;
-
-    use super::{
-        DependencySelection, FileConfig, IncompleteEffectPolicy, Settings, UnlistedEffectPolicy,
-    };
+    use super::{FileConfig, Settings, reject_removed_sections};
 
     #[test]
     fn config_uses_kebab_case_and_rejects_unknown_keys() {
@@ -600,59 +200,32 @@ mod tests {
     }
 
     #[test]
-    fn fact_paths_are_relative_to_the_configuration() {
-        let config: FileConfig = toml::from_str(
-            "[facts]\ncache = \"cache\"\nlock = \"facts.lock.toml\"\nparser-paths = [\"parsers\"]\ndependencies = \"none\"\nexact-clones = true\nclone-exclude = [\"tests/fixtures\"]\n\n[[facts.builders]]\necosystem = \"cargo\"\ncommand = [\"infact-builder\", \"build\"]\n",
-        )
-        .unwrap();
+    fn settings_come_from_the_configuration_file() {
+        let config: FileConfig =
+            toml::from_str("paths = [\"src\"]\nmax-nesting = 3\nskip = [\"emoji\"]\n").unwrap();
         let settings = Settings::default().apply_file_at(config, Path::new("repo"));
-        assert_eq!(settings.facts.cache, Path::new("repo/cache"));
-        assert_eq!(settings.facts.lock, Path::new("repo/facts.lock.toml"));
-        assert_eq!(
-            settings.facts.clone_exclude,
-            [Path::new("repo/tests/fixtures")]
-        );
-        assert_eq!(settings.facts.builders[0].ecosystem, "cargo");
-        assert_eq!(
-            settings.facts.builders[0].command,
-            ["infact-builder", "build"]
-        );
-        assert_eq!(settings.facts.parser_paths, vec![Path::new("repo/parsers")]);
-        assert_eq!(settings.facts.dependencies, DependencySelection::None);
-        assert!(settings.facts.exact_clones);
+        assert_eq!(settings.paths, [Path::new("src")]);
+        assert_eq!(settings.max_nesting, 3);
+        assert_eq!(settings.skip, ["emoji"]);
+        assert_eq!(settings.config_root, Path::new("repo"));
     }
 
     #[test]
-    fn effect_capabilities_use_closed_world_defaults() {
-        let config: FileConfig = toml::from_str(
-            "[effects]\n\n[[effects.capabilities]]\nname = 'filesystem'\nincludes = ['file-read', 'file-write']\nprovided-by = ['src/adapters/filesystem/**']\navailable-to = ['src/application/**']\n",
-        )
-        .unwrap();
-        let settings = Settings::default().apply_file(config);
-        settings.validate().unwrap();
-        assert!(settings.facts.require_call_effects);
-        let effects = settings.effects.unwrap();
-        assert_eq!(effects.unlisted, UnlistedEffectPolicy::Deny);
-        assert_eq!(effects.incomplete, IncompleteEffectPolicy::Error);
-        assert_eq!(
-            effects.capabilities[0].includes,
-            [Effect::FileRead, Effect::FileWrite]
-        );
-    }
-
-    #[test]
-    fn effect_capabilities_reject_overlapping_effects() {
-        let config: FileConfig = toml::from_str(
-            "[effects]\nincomplete = 'warn'\n\n[[effects.capabilities]]\nname = 'first'\nincludes = ['time']\nprovided-by = ['src/clock.rs']\n\n[[effects.capabilities]]\nname = 'second'\nincludes = ['time']\nprovided-by = ['src/runtime.rs']\n",
-        )
-        .unwrap();
-        let settings = Settings::default().apply_file(config);
-        assert!(
-            settings
-                .validate()
+    fn removed_sections_name_the_rule_that_went_away() {
+        for (section, rule) in [
+            ("[facts]\nexact-clones = true\n", "exact-clone"),
+            (
+                "[effects]\n\n[[effects.capabilities]]\nname = 'filesystem'\n",
+                "effect-capability",
+            ),
+            ("[errors]\ndeny = ['let-underscore']\n", "error-discard"),
+        ] {
+            let config: FileConfig = toml::from_str(section).unwrap();
+            let error = reject_removed_sections(&config, Path::new("straitjacket.toml"))
                 .unwrap_err()
-                .to_string()
-                .contains("included by both")
-        );
+                .to_string();
+            assert!(error.contains(rule), "{error} should name {rule}");
+            assert!(error.contains("no longer has"), "{error}");
+        }
     }
 }

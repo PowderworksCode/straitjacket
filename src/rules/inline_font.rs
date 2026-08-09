@@ -1,4 +1,4 @@
-use entl_codebase::STYLE_HOST;
+use crate::language::STYLE_HOST;
 use regex::Captures;
 
 use crate::Settings;
@@ -58,7 +58,6 @@ inventory::submit! {
     RuleRegistration {
         key: KEY,
         factory: Some(build),
-        repository_factory: None,
         instruction,
     }
 }

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use entl_codebase::{LanguageProfile, STRUCTURED_CODE};
+use crate::language::{LanguageProfile, STRUCTURED_CODE};
 
 use crate::Settings;
 use crate::finding::{Finding, Location, Severity};
@@ -33,7 +33,6 @@ inventory::submit! {
     RuleRegistration {
         key: KEY,
         factory: Some(build),
-        repository_factory: None,
         instruction,
     }
 }

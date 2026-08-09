@@ -216,7 +216,7 @@ fn json_is_skipped_unless_explicitly_included() {
 }
 
 #[test]
-fn rule_policy_uses_entl_profile_facts() {
+fn rule_policy_follows_the_language_table() {
     assert!(scanner(&["emoji"]).handles_extension("mts"));
     assert!(scanner(&["emoji"]).handles_extension("cts"));
 

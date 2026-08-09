@@ -1,4 +1,4 @@
-use entl_codebase::STYLE_HOST;
+use crate::language::STYLE_HOST;
 
 use crate::Settings;
 use crate::rule::{FileRule, RuleKey};
@@ -39,7 +39,6 @@ inventory::submit! {
     RuleRegistration {
         key: KEY,
         factory: Some(build),
-        repository_factory: None,
         instruction,
     }
 }
