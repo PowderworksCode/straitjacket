@@ -70,7 +70,10 @@ would help a future agent. Keep temporary plans and task-specific notes out.
 - The **first** publish of a crate cannot use trusted publishing. crates.io has
   no equivalent of PyPI's pending publishers, so a new crate must be published
   once with an API token before the trusted publisher can be configured
-  against it.
+  against it. A `CARGO_REGISTRY_TOKEN` repository secret covers exactly that
+  one release: when it is set the job uses it, and when it is absent the job
+  uses OIDC. Delete the secret once the trusted publisher exists — leaving it
+  there defeats the reason for any of this.
 
 ## Rules
 
