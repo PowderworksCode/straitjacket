@@ -10,6 +10,7 @@ use straitjacket::config::{self, Settings};
 use straitjacket::finding::Severity;
 use straitjacket::instructions;
 use straitjacket::language::LanguageProfile;
+use straitjacket::manifest::Manifest;
 use straitjacket::report::{self, OutputFormat};
 use straitjacket::walk::{SourceFileEntry, WalkOptions, walk};
 use straitjacket::{Finding, PendingFileScan, PendingScan, Scanner};
@@ -81,7 +82,10 @@ struct Cli {
     #[arg(long, help = "Ignore checked-in configuration")]
     no_config: bool,
 
-    #[arg(long, help = "List all known rules and exit")]
+    #[arg(
+        long,
+        help = "List all known rules and exit. `--format json` emits the rule manifest"
+    )]
     list_rules: bool,
 }
 
@@ -115,13 +119,13 @@ fn run() -> anyhow::Result<ExitCode> {
     }
 
     if cli.list_rules {
-        for descriptor in scanner.descriptors() {
-            let default = if descriptor.default_enabled {
-                "default"
-            } else {
-                "opt-in"
-            };
-            println!("{} ({default})\n    {}", descriptor.id, descriptor.summary);
+        let manifest = Manifest::build(&scanner.descriptors(), &settings);
+        match settings.format {
+            OutputFormat::Text => print!("{}", manifest.to_text()),
+            OutputFormat::Json => print!("{}", manifest.to_json()?),
+            OutputFormat::Sarif => anyhow::bail!(
+                "--list-rules supports `--format text` and `--format json`; SARIF describes findings, not rules"
+            ),
         }
         return Ok(ExitCode::SUCCESS);
     }

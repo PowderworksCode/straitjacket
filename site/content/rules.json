@@ -1,0 +1,75 @@
+{
+  "schema": "straitjacket.rules/1",
+  "version": "0.1.1",
+  "rules": [
+    {
+      "id": "color",
+      "summary": "hardcoded color literal",
+      "default_enabled": true
+    },
+    {
+      "id": "deep-nesting",
+      "summary": "code exceeds the configured indentation-depth budget",
+      "default_enabled": true
+    },
+    {
+      "id": "emoji",
+      "summary": "emoji glyph in source; use a text label or named icon",
+      "default_enabled": true
+    },
+    {
+      "id": "file-size",
+      "summary": "file exceeds the configured line budget",
+      "default_enabled": true
+    },
+    {
+      "id": "inline-font",
+      "summary": "inline font-family literal stack",
+      "default_enabled": true
+    },
+    {
+      "id": "inline-svg",
+      "summary": "inline SVG in component source",
+      "default_enabled": true
+    },
+    {
+      "id": "motion",
+      "summary": "ad-hoc transition or animation",
+      "default_enabled": true
+    },
+    {
+      "id": "no-comments",
+      "summary": "ordinary comment outside the leading file header",
+      "default_enabled": false
+    },
+    {
+      "id": "stray-todo",
+      "summary": "deferred-work marker left in a comment",
+      "default_enabled": true
+    },
+    {
+      "id": "unused-marker",
+      "summary": "suppression marker did not suppress a finding",
+      "default_enabled": true
+    }
+  ],
+  "removed": [
+    "analysis-incomplete",
+    "effect-barrier",
+    "effect-capability",
+    "error-discard",
+    "exact-clone",
+    "library-opportunity",
+    "near-clone",
+    "unknown-barrier"
+  ],
+  "defaults": {
+    "max-lines": 1500,
+    "max-nesting": 8,
+    "no-comments": false,
+    "include-json": false,
+    "no-ignore": false,
+    "no-fail": false,
+    "fail-on-unused-markers": true
+  }
+}
