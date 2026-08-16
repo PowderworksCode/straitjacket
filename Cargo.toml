@@ -2,11 +2,15 @@
 name = "straitjacket"
 version = "0.1.1"
 edition = "2024"
-description = "An opinionated source scanner with deterministic findings for CI."
+description = "A fast, deterministic scanner that flags the weird code and text LLMs produce."
 license = "MIT"
 repository = "https://github.com/PowderworksCode/straitjacket"
+homepage = "https://straitjacket.dev"
+documentation = "https://straitjacket.dev/docs"
 readme = "README.md"
-exclude = ["assets/*"]
+keywords = ["linter", "llm", "ai", "static-analysis", "ci"]
+categories = ["development-tools", "command-line-utilities"]
+exclude = ["assets/*", "site/*", "notes/*"]
 
 [[bin]]
 name = "straitjacket"

@@ -1,0 +1,16 @@
+# Cloudflare Workers config for the straitjacket docs site (static assets only).
+#
+# The site is a Next.js static export (`output: 'export'` -> ./out). This deploys
+# it as an assets-only Worker (no server code).
+#
+# Cloudflare Workers Build settings:
+#   Root directory:   /site
+#   Build command:    bun run build
+#   Deploy command:   npx wrangler deploy
+# Locally: bun run build && npx wrangler deploy
+name = "straitjacket"
+compatibility_date = "2026-07-01"
+
+[assets]
+directory = "./out"
+not_found_handling = "404-page"
