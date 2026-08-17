@@ -38,14 +38,18 @@ runtime code. `wrangler.toml` points `[assets]` at `./out`.
 | --- | --- |
 | Root directory | `site` |
 | Build command | `bun run build` |
-| Deploy command | `npx wrangler deploy` |
+| Deploy command | `bun run deploy` |
 
 **Locally:**
 
 ```sh
 bun run build
-bunx wrangler deploy
+bun run deploy
 ```
+
+Both go through `package.json`, so the wrangler version is the one in
+`bun.lock`. Calling `bunx wrangler` directly would fetch whatever is newest at
+deploy time instead.
 
 Point the `straitjacket.dev` custom domain at the Worker in the Cloudflare
 dashboard.
