@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "deploy": "wrangler deploy",
     "dev": "next dev",
     "start": "serve out",
     "types:check": "fumadocs-mdx && next typegen && tsc --noEmit",
@@ -23,6 +24,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.1",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.0.0",
@@ -32,6 +34,6 @@
     "serve": "^14.2.6",
     "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3",
-    "@biomejs/biome": "^2.5.1"
+    "wrangler": "^4.123.0"
   }
 }
