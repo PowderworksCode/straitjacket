@@ -50,6 +50,7 @@ Straitjacket scans itself under its own rules, so run it before opening a PR:
 
 ```sh
 cargo run --release -- .
+scripts/rules-manifest.sh --check
 ```
 
 It should print `ok`. Note that `straitjacket.toml` in this repository sets
@@ -73,6 +74,18 @@ A new rule needs:
    suppression by marker.
 5. An entry in the [rules reference](site/content/docs/reference/rules.mdx) and
    the README table.
+6. A regenerated rule manifest:
+
+```sh
+scripts/rules-manifest.sh
+```
+
+That exports the rule set from the binary into `site/content/rules.json`. CI
+runs `scripts/rules-manifest.sh --check` and fails if the committed manifest has
+drifted, and the site's tests check the documentation against it — a rule that
+is not documented, a page that names a rule the binary does not have, or a
+default quoted at a stale value all fail the build. That check exists because
+the website once described six rules this repository never carried.
 
 New rules default to on. If a rule is too noisy to be on by default, that is
 usually a sign it is not general enough yet.

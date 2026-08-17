@@ -1,0 +1,37 @@
+name: docs
+
+# The documentation is checked against the scanner, not maintained beside it.
+#
+# This is a workflow of its own rather than a job in `ci.yml`, because `ci.yml`
+# skips pull requests that only touch prose — and a prose-only pull request is
+# exactly when the documentation can drift away from the binary.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    name: rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      # The manifest is generated from the binary, so a rule added, renamed or
+      # withdrawn without regenerating it fails here rather than reaching the
+      # website.
+      - name: The exported rule manifest is current
+        run: scripts/rules-manifest.sh --check
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+        working-directory: site
+      # Checks the other direction: every rule is documented, no page claims a
+      # rule that does not exist, and no page quotes a stale default.
+      - run: bun test
+        working-directory: site

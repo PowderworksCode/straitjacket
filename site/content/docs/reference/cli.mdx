@@ -27,6 +27,7 @@ straitjacket --no-ignore           # don't respect .gitignore / hidden-file rule
 straitjacket --no-fail             # report but always exit 0
 straitjacket --sarif straitjacket.sarif
 straitjacket instructions          # print the repository policy for agents
+straitjacket --list-rules --format json   # the rule manifest, for tooling
 ```
 
 ## Options
@@ -47,9 +48,41 @@ straitjacket instructions          # print the repository policy for agents
 | `--sarif <path>` | — | Write a SARIF report to this path *in addition to* stdout. |
 | `--config <path>` | — | Use this config file instead of discovering [`straitjacket.toml`](/docs/reference/config-file). |
 | `--no-config` | off | Ignore checked-in configuration; use only flags and defaults. |
-| `--list-rules` | off | List all known rules and exit. |
+| `--list-rules` | off | List all known rules and exit. With `--format json`, emits the [rule manifest](#the-rule-manifest). |
 | `-h`, `--help` | — | Print help and exit. |
 | `-V`, `--version` | — | Print the version and exit. |
+
+## The rule manifest
+
+`--list-rules` prints a readable table by default. With `--format json` it emits
+a machine-readable manifest of everything this binary enforces — every rule, the
+rules it used to carry, and the tunable defaults:
+
+```sh
+straitjacket --list-rules --no-config --format json
+```
+
+```json
+{
+  "schema": "straitjacket.rules/1",
+  "version": "0.1.1",
+  "rules": [
+    { "id": "color", "summary": "hardcoded color literal", "default_enabled": true }
+  ],
+  "removed": ["exact-clone"],
+  "defaults": { "max-lines": 1500, "max-nesting": 8 }
+}
+```
+
+Pass `--no-config` when you want the built-in defaults rather than the ones a
+checked-in `straitjacket.toml` resolves to.
+
+The `removed` list is what lets a tool tell a withdrawn rule from a typo. It is
+also how this documentation is verified: the manifest is exported to
+`site/content/rules.json`, and the site's tests fail the build if a page
+documents a rule the binary does not have, omits one it does, or quotes a
+default that has moved. `--format sarif` is rejected here — SARIF describes
+findings, not rules.
 
 ## Commands
 

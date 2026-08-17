@@ -13,6 +13,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Crate metadata for discovery on crates.io: `homepage`, `documentation`,
   `keywords`, and `categories`.
 - `CHANGELOG.md` and `CONTRIBUTING.md`.
+- A machine-readable rule manifest: `straitjacket --list-rules --format json`
+  emits every rule, every withdrawn rule, and the tunable defaults.
+  `scripts/rules-manifest.sh` exports it to `site/content/rules.json`, and a
+  `docs` workflow fails the build when the manifest is stale, when a rule is
+  undocumented, when a page names a rule the binary does not have, or when a
+  page quotes a default that has moved.
 
 ### Changed
 
