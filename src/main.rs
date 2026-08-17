@@ -25,7 +25,7 @@ struct PreparedFile {
 #[command(
     name = "straitjacket",
     version,
-    about = "Find opinionated source-code smells and report them consistently"
+    about = "Flag the weird code and text LLMs produce"
 )]
 struct Cli {
     #[command(subcommand)]

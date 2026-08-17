@@ -1,0 +1,63 @@
+---
+title: The position on comments
+description: Why no-comments is the one rule you have to ask for.
+---
+
+`no-comments` flags **every comment**: line, block, doc, pragma, all of them,
+in every language it knows. It is the only rule that is off unless you ask for
+it. Both of those facts are deliberate.
+
+## The position
+
+A comment is a place where the code stopped speaking for itself. That is
+sometimes unavoidable and often not, and the difference is worth being made to
+notice. If it matters, say it in the code — in a name, in a type, in a smaller
+function. If it is history, say it in the commit message, where it is attached
+to the change it explains and cannot drift away from it.
+
+The specific reason this rule exists is that **LLMs narrate relentlessly**:
+
+```ts
+// increment the counter
+counter += 1;
+```
+
+That comment is not documentation. It is a model restating the line below it,
+and a repository generated at any volume fills up with them. They are not
+individually harmful, which is exactly why nobody removes them, and why a
+deterministic check earns its place.
+
+## Why it is opt-in
+
+The rest of the rule set runs at its max and you ratchet down — the defaults are
+the strict thing, because a scanner that quietly stops enforcing is worse than
+one that fails. `no-comments` is the exception, because comments are ordinary in
+most codebases and a tool that flags all of them on first run against an
+unprepared repository is not making an argument, it is making noise.
+
+So it is a mode you enter on purpose:
+
+```sh
+straitjacket --no-comments        # the mode, alongside every other rule
+straitjacket --only no-comments   # just show me the comments (implies the mode)
+```
+
+or a line in your [`straitjacket.toml`](/docs/reference/config-file) once you
+have decided it is your repository's policy.
+
+## What it still allows
+
+The position is maximalist but not unlivable:
+
+- **A leading file header.** Ordinary comments are allowed in the first 10 lines,
+  before code begins — the place where a file explains what it is for, which the
+  code genuinely cannot.
+- **Documentation comments** where they feed language documentation tooling,
+  including rustdoc and JSDoc. Those are an API surface, not narration.
+- **Shebang lines**, which are interpreter directives rather than commentary.
+- **Suppression markers**, so the escape hatch keeps working for every other rule
+  while the mode is on.
+
+Straitjacket's own source runs with `no-comments = true`, and the comments that
+remain in it are the header kind: they explain a decision that the code cannot,
+and they sit at the top of the file where you look for exactly that.

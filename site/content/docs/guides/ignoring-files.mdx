@@ -1,0 +1,63 @@
+---
+title: Exclude big or generated files
+description: Keep generated output, vendored code, and oversized files from tripping Straitjacket.
+---
+
+Generated and vendored files aren't written by a human and shouldn't be judged
+like they were. Here's how to keep them out of Straitjacket's way.
+
+## Exempt one big file
+
+`file-size` is a whole-file rule, so use the file-scoped marker — a per-line
+`straitjacket-allow` won't silence it. Put this on any line of the file:
+
+```ts
+// straitjacket-allow-file:file-size  generated, intentionally large
+```
+
+That exempts the file from the size rule only; every other rule still runs.
+
+## Stop scanning generated files entirely
+
+Add them to `.gitignore` or `.ignore` — Straitjacket honors both. A file matched
+there is exempt from **all** rules, which is usually what you want for generated
+output.
+
+`.ignore` is handy for files you commit but don't want any tooling to lint. It's
+read by Straitjacket (and by ripgrep, and other tools) even though git ignores
+it.
+
+```
+# .ignore
+src/generated/**
+vendor/**
+```
+
+## Skip JSON
+
+`.json` is skipped by default — it's almost always generated or config data, not
+code or prose meant to be read by a human. To scan it too:
+
+```sh
+straitjacket --include-json
+```
+
+## Raise or disable the size budget globally
+
+The `file-size` rule defaults to a **1500-line** budget. Change it for the whole
+run:
+
+```sh
+straitjacket --max-lines 800   # tighter budget
+straitjacket --max-lines 0     # disable the rule
+straitjacket --skip file-size  # also disables the rule
+```
+
+## Turn off .gitignore handling
+
+By default Straitjacket respects `.gitignore` and hidden-file conventions. To
+scan everything regardless:
+
+```sh
+straitjacket --no-ignore
+```

@@ -7,11 +7,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/marketplace/actions/powderworks-straitjacket"><img src="https://img.shields.io/badge/marketplace-powderworks--straitjacket-2088FF?logo=githubactions&logoColor=white" alt="Powderworks Straitjacket on the GitHub Marketplace"></a>
+  <a href="https://crates.io/crates/straitjacket"><img src="https://img.shields.io/crates/v/straitjacket.svg" alt="straitjacket on crates.io"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT licensed"></a>
+  <a href="https://straitjacket.dev"><img src="https://img.shields.io/badge/docs-straitjacket.dev-informational" alt="Documentation at straitjacket.dev"></a>
 </p>
 
 Straitjacket is a fast, deterministic scanner that flags the weird code and text LLMs
-like to produce. It sweeps your files against a set of configurable rules and flags anything it finds. 
+produce. It sweeps your files against a set of configurable rules and flags anything it finds.
+
+Full documentation lives at **[straitjacket.dev](https://straitjacket.dev)**.
 
 ```sh
 # quick start (Linux x86_64/aarch64, macOS arm64/x86_64):
@@ -108,7 +112,7 @@ YAML rather than by assembling an argument string:
 | `sarif-file` | none | Write a SARIF report to this path. |
 | `fail-on-findings` | `true` | Fail the step on error-level findings. |
 | `fail-on-unused-markers` | `true` | Report suppression markers that suppress nothing. |
-| `token` | none | Only needed while this repository is private. |
+| `token` | none | A GitHub token for the release download. Not needed for this repository, which is public. |
 
 `paths`, `only`, and `skip` take either a list or a single line, so both of
 these mean the same thing:
@@ -242,6 +246,13 @@ Rules then narrow further. `color` and `motion` run wherever style values can
 appear, which includes Vue, Svelte, and JSX as well as CSS; `deep-nesting` runs
 only on languages that nest executable code; `emoji` runs everywhere except data
 formats.
+
+## Contributing
+
+The most useful thing you can send is a concrete example — a pattern
+Straitjacket should catch, or a false positive it shouldn't. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for what makes a good rule and how to run the
+tests. Release-to-release changes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

@@ -1,0 +1,60 @@
+---
+title: Documentation
+description: Everything on running Straitjacket — tutorials, how-to guides, reference, and the reasoning behind the rules.
+---
+
+Straitjacket is a fast, deterministic scanner that flags the weird code and text
+LLMs produce. It sweeps your files against a set of rules — with snobby yet
+configurable defaults — and flags anything it finds. It's a single static Rust
+binary with no runtime dependencies, so it drops into almost any environment or
+repo's CI, regardless of language or stack.
+
+These docs follow the [Diátaxis](https://diataxis.fr/) framework — four kinds of
+documentation, each answering a different question:
+
+<Cards>
+  <Card
+    title="Tutorials"
+    href="/docs/tutorials/getting-started"
+    description="Learning-oriented. Start here: install Straitjacket and run your first scan end to end."
+  />
+  <Card
+    title="How-to guides"
+    href="/docs/guides/ci"
+    description="Task-oriented recipes: wire it into CI, suppress a false positive, exclude generated files, tune the rules."
+  />
+  <Card
+    title="Reference"
+    href="/docs/reference/rules"
+    description="Information-oriented. Every rule, every CLI flag, every Action input, and the exact suppression-marker syntax."
+  />
+  <Card
+    title="Explanation"
+    href="/docs/explanation"
+    description="Understanding-oriented. Why every rule is lexical rather than parsed, and the position behind no-comments."
+  />
+  <Card
+    title="About"
+    href="/docs/about/philosophy"
+    description="Background & philosophy, how to contribute a new smell, and the license."
+  />
+</Cards>
+
+## In a hurry?
+
+```sh
+# install (Linux x86_64/aarch64, macOS arm64/x86_64)
+curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
+
+# or, from source
+cargo install straitjacket
+
+# scan the current directory (honors .gitignore)
+straitjacket
+```
+
+Everything is on by default — Straitjacket runs at its max, and you ratchet down
+with `--skip`. A first run against an established repository will find a lot;
+add `--no-fail` to read the report without failing your shell. See the
+[Getting started tutorial](/docs/tutorials/getting-started) for a guided
+walkthrough.

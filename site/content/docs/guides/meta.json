@@ -1,0 +1,10 @@
+{
+  "title": "How-to guides",
+  "pages": [
+    "ci",
+    "suppressing-findings",
+    "ignoring-files",
+    "tuning-rules",
+    "monorepos"
+  ]
+}
