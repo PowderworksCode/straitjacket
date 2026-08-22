@@ -1,7 +1,7 @@
 ---
 title: Contact
 description: How to reach the Straitjacket maintainers: bug reports, rule proposals, and security issues.
-order: 12
+order: 4
 ---
 
 Straitjacket has no support inbox; GitHub is the channel. Everything happens in

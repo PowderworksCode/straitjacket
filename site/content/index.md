@@ -15,7 +15,7 @@ snobby-but-configurable rules and flags anything it finds — one static Rust
 binary, no runtime, so it drops into any repo's CI regardless of language or
 stack.
 
-[Get started](/docs/getting-started/) · [Read the docs](/docs/) · [Browse the rules](/docs/reference/rules/) · [GitHub](https://github.com/PowderworksCode/straitjacket)
+[Get started](/getting-started/) · [Read the docs](/guides/) · [Browse the rules](/reference/rules/) · [GitHub](https://github.com/PowderworksCode/straitjacket)
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh

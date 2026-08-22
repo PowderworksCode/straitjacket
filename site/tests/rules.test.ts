@@ -15,7 +15,7 @@ type Manifest = {
 };
 
 const ROOT = join(import.meta.dir, "..");
-const DOCS_DIR = join(ROOT, "content", "docs");
+const DOCS_DIR = join(ROOT, "content");
 const RULES_REFERENCE = join(DOCS_DIR, "reference", "rules.md");
 const README = join(ROOT, "..", "README.md");
 

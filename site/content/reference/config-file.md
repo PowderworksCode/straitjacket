@@ -38,7 +38,7 @@ fail-on-unused-markers = true
 
 ## Keys
 
-Every key mirrors a [CLI flag](/docs/reference/cli) one-for-one, in
+Every key mirrors a [CLI flag](/reference/cli) one-for-one, in
 **kebab-case**:
 
 | key | type | flag |
@@ -52,7 +52,7 @@ Every key mirrors a [CLI flag](/docs/reference/cli) one-for-one, in
 | `file-size-exclude` | list of path prefixes | — |
 | `todo-exclude` | list of path prefixes | — |
 | `theme-files` | list of paths allowed to define colors | — |
-| `no-comments` | boolean | `--no-comments` ([no-comments mode](/docs/reference/rules#no-comments-mode)) |
+| `no-comments` | boolean | `--no-comments` ([no-comments mode](/reference/rules#no-comments-mode)) |
 | `include-json` | boolean | `--include-json` |
 | `no-ignore` | boolean | `--no-ignore` |
 | `no-fail` | boolean | `--no-fail` |
@@ -60,7 +60,7 @@ Every key mirrors a [CLI flag](/docs/reference/cli) one-for-one, in
 
 An **unknown key is an error**, and so is an unknown rule id in `only`/`skip` —
 a typo'd setting is surfaced, not silently ignored. The rule ids are the ones in
-the [rules reference](/docs/reference/rules).
+the [rules reference](/reference/rules).
 
 `theme-files` designates the files that are *allowed* to define color literals,
 so a palette or token module doesn't have to be papered over with markers.
@@ -97,7 +97,7 @@ section; those rules are not coming back in this line of the tool.
 
 ## With the GitHub Action
 
-The [Action](/docs/reference/github-action) runs Straitjacket inside your
+The [Action](/reference/github-action) runs Straitjacket inside your
 checked-out repo, so a committed `straitjacket.toml` is picked up with no extra
 configuration. Leave the Action's inputs blank to defer to the file; set an input
 to override it for that workflow.

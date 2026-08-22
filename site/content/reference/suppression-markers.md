@@ -7,7 +7,7 @@ order: 5
 Straitjacket has two escape hatches, both plain marker text. It matches the text
 anywhere on a line — the surrounding comment syntax (`//`, `#`, `/* */`,
 `<!-- -->`) doesn't matter, so use whatever's valid in the file. For a
-step-by-step walkthrough see [Suppress a false positive](/docs/guides/suppressing-findings).
+step-by-step walkthrough see [Suppress a false positive](/guides/suppressing-findings).
 
 ## Line scope
 
@@ -46,5 +46,5 @@ file is conventional.
 - **Whole-file rules need file scope.** `file-size` doesn't attach to a single
   source line, so a per-line `straitjacket-allow` won't silence it; use
   `straitjacket-allow-file:file-size`.
-- `<rule>` is any rule id from the [rules reference](/docs/reference/rules) — the
+- `<rule>` is any rule id from the [rules reference](/reference/rules) — the
   same ids `--only` and `--skip` accept.

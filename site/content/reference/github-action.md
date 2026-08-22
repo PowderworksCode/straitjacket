@@ -7,7 +7,7 @@ order: 4
 The `PowderworksCode/straitjacket` GitHub Action installs the prebuilt binary and
 runs it over your checked-out repository in one self-contained pass. It fails the
 step on any error-level finding. For a walkthrough see
-[Add Straitjacket to CI](/docs/guides/ci); this page is the input reference.
+[Add Straitjacket to CI](/guides/ci); this page is the input reference.
 
 ## Usage
 
@@ -33,7 +33,7 @@ failing an unrelated PR on a rule you never opted into. Bump both, deliberately.
 Every command-line option has an input, so a workflow configures the scan in YAML
 rather than by assembling an argument string. Each input is optional; blanks fall
 back to Straitjacket's own defaults, including a committed
-[`straitjacket.toml`](/docs/reference/config-file).
+[`straitjacket.toml`](/reference/config-file).
 
 | input | default | meaning |
 |-------|---------|---------|
@@ -44,7 +44,7 @@ back to Straitjacket's own defaults, including a committed
 | `format` | `text` | Output written to the log — `text`, `json`, or `sarif`. |
 | `max-lines` | config | Maximum lines per file. `0` disables `file-size`. |
 | `max-nesting` | config | Maximum indentation depth. `0` disables `deep-nesting`. |
-| `no-comments` | `false` | Enable the opt-in [`no-comments`](/docs/reference/rules#no-comments-mode) rule. |
+| `no-comments` | `false` | Enable the opt-in [`no-comments`](/reference/rules#no-comments-mode) rule. |
 | `include-json` | `false` | Scan JSON files, which are skipped by default. |
 | `no-ignore` | `false` | Scan what ignore files and the hidden-file convention exclude. |
 | `config` | discovered | Use this configuration file instead of discovering one. |
@@ -106,7 +106,7 @@ steps:
 
 Set `fail-on-findings: "false"` on the scan step, or a failing scan ends the job
 before the upload runs and you get the gate without the annotations. See
-[SARIF / inline PR annotations](/docs/guides/ci#sarif--inline-pr-annotations).
+[SARIF / inline PR annotations](/guides/ci#sarif--inline-pr-annotations).
 
 ## Notes
 

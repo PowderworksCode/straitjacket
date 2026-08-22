@@ -36,18 +36,18 @@ straitjacket --list-rules --format json   # the rule manifest, for tooling
 | flag | default | effect |
 |------|---------|--------|
 | `[PATHS]...` | config, then `.` | Files or directories to scan. |
-| `--format <text\|json\|sarif>` | `text` | Output format written to stdout. `json` is machine-readable; `sarif` emits SARIF 2.1.0 for [GitHub code scanning](/docs/guides/ci#sarif--inline-pr-annotations). |
+| `--format <text\|json\|sarif>` | `text` | Output format written to stdout. `json` is machine-readable; `sarif` emits SARIF 2.1.0 for [GitHub code scanning](/guides/ci#sarif--inline-pr-annotations). |
 | `--only <ids>` | — | Run only these rules (comma-separated ids). |
 | `--skip <ids>` | — | Skip these rules (comma-separated ids). |
 | `--max-lines <n>` | `1500` | `file-size` line budget. `0` disables the rule. |
 | `--max-nesting <n>` | `8` | `deep-nesting` indentation-depth budget. `0` disables the rule. |
-| `--no-comments` | off | Flag every comment (the opt-in [no-comments mode](/docs/reference/rules#no-comments-mode)). `--only no-comments` implies it. |
+| `--no-comments` | off | Flag every comment (the opt-in [no-comments mode](/reference/rules#no-comments-mode)). `--only no-comments` implies it. |
 | `--include-json` | off | Also scan `.json` files (skipped by default as generated/config data). |
 | `--no-ignore` | off | Don't respect `.gitignore`, `.ignore`, or hidden-file conventions; scan everything. |
 | `--no-fail` | off | Exit `0` even when findings exist (report-only). |
 | `--no-fail-on-unused-markers` | off | Don't report suppression markers that suppress nothing. |
 | `--sarif <path>` | — | Write a SARIF report to this path *in addition to* stdout. |
-| `--config <path>` | — | Use this config file instead of discovering [`straitjacket.toml`](/docs/reference/config-file). |
+| `--config <path>` | — | Use this config file instead of discovering [`straitjacket.toml`](/reference/config-file). |
 | `--no-config` | off | Ignore checked-in configuration; use only flags and defaults. |
 | `--list-rules` | off | List all known rules and exit. With `--format json`, emits the [rule manifest](#the-rule-manifest). |
 | `-h`, `--help` | — | Print help and exit. |

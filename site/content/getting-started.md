@@ -19,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/i
 It verifies the download against the release checksums and installs to
 `~/.local/bin`. Prefer to build from source? `cargo install straitjacket`.
 Full details — install location overrides, pinning a version — are in the
-[installation reference](/docs/reference/cli#installing).
+[installation reference](/reference/cli#installing).
 
 Check it's on your `PATH`:
 
@@ -69,7 +69,7 @@ straitjacket: 5 error(s), 0 warning(s) across 128 file(s); 0 suppressed
 ```
 
 The process exits **1** when there's any error-level finding — that's what makes
-[CI](/docs/guides/ci) fail — **0** when it's clean, and **2** if the run itself
+[CI](/guides/ci) fail — **0** when it's clean, and **2** if the run itself
 failed (a bad config, an unknown rule id).
 
 > **Expect a lot on the first run**
@@ -88,7 +88,7 @@ Want to see what each rule means? List them:
 straitjacket --list-rules
 ```
 
-Or read the full [rules reference](/docs/reference/rules).
+Or read the full [rules reference](/reference/rules).
 
 ## 4. Handle a finding
 
@@ -112,7 +112,7 @@ Or exempt a whole file by putting a marker on any one line of it:
 :root { --bg: #1e1e1e; --fg: #abb2bf; }
 ```
 
-The full scoping rules are in [Suppress a false positive](/docs/guides/suppressing-findings).
+The full scoping rules are in [Suppress a false positive](/guides/suppressing-findings).
 
 ## 5. Scope the scan
 
@@ -126,6 +126,6 @@ straitjacket --skip motion      # everything except this rule
 
 ## Where to next
 
-- Wire Straitjacket into CI so it runs on every push → [Add Straitjacket to CI](/docs/guides/ci)
-- Save your settings in the repo → [Config file](/docs/reference/config-file)
-- See every flag and its default → [CLI reference](/docs/reference/cli)
+- Wire Straitjacket into CI so it runs on every push → [Add Straitjacket to CI](/guides/ci)
+- Save your settings in the repo → [Config file](/reference/config-file)
+- See every flag and its default → [CLI reference](/reference/cli)

@@ -16,8 +16,6 @@ const MARKDOWN_TYPE = "text/markdown; charset=utf-8";
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith("/docs")) return env.ASSETS.fetch(request);
-
     const asset = await env.ASSETS.fetch(request);
     if (!(request.headers.get("Accept") ?? "").includes("text/markdown"))
       return asset;

@@ -83,7 +83,7 @@ worse than one that fails.
 
 Every field is optional; blanks fall back to Straitjacket's own defaults,
 including any `straitjacket.toml` committed to the repo. The complete list is in
-the [GitHub Action reference](/docs/reference/github-action).
+the [GitHub Action reference](/reference/github-action).
 
 ## Report without failing
 

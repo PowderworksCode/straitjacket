@@ -1,7 +1,7 @@
 ---
 title: About
 description: What Straitjacket is, who builds it, and why it exists.
-order: 10
+order: 9
 ---
 
 Straitjacket is a fast, deterministic scanner that flags the weird code and
@@ -15,7 +15,7 @@ Every rule runs on the text of a file — the same binary works across every
 language and stack, no toolchain required. The trade is that findings are
 pattern-level: Straitjacket tells you what is in the source, not what it means.
 The reasoning behind the rule set is written down in
-[the project philosophy](/docs/about/philosophy/).
+[the project philosophy](/project/philosophy/).
 
 Straitjacket is built by
 [Powderworks](https://powderworks.dev), an independent workshop of open-source
@@ -24,5 +24,5 @@ developer tools maintained by Zack Maril. The code is MIT-licensed and lives on
 checksums, and the full commit history are public.
 
 If you want to shape what it catches — a new smell, a false positive you should
-not have to live with — the [contributing guide](/docs/about/contributing/) is
+not have to live with — the [contributing guide](/project/contributing/) is
 the way in.

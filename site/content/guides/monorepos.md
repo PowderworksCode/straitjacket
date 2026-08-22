@@ -79,5 +79,5 @@ file-size-exclude = ["packages/generated/", "notes/"]
 todo-exclude = ["packages/legacy/"]
 ```
 
-The [suppression markers](/docs/reference/suppression-markers) still cover the
+The [suppression markers](/reference/suppression-markers) still cover the
 one-off exceptions that no amount of scoping should.

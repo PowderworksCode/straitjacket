@@ -45,7 +45,7 @@ right tool for a theme or palette file full of legitimate hexes:
 **`file-size`** is inherently whole-file — it doesn't attach to a single line, so
 a per-line `straitjacket-allow` won't silence it. You need
 `straitjacket-allow-file:file-size`, or better, one of the path-prefix exclusions
-in [Exclude big or generated files](/docs/guides/ignoring-files).
+in [Exclude big or generated files](/guides/ignoring-files).
 
 **`emoji`** is the other common file-scope case: a fixture module that
 deliberately exercises Unicode will trip it on every line, and
@@ -56,4 +56,4 @@ blanket one whenever you can — it keeps every *other* rule live on that file,
 which is almost always what you want.
 
 For the exact matching semantics, see the
-[suppression-markers reference](/docs/reference/suppression-markers).
+[suppression-markers reference](/reference/suppression-markers).

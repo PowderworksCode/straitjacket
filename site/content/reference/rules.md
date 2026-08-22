@@ -69,7 +69,7 @@ jobs:
 """
 ```
 
-See [Suppression markers](/docs/reference/suppression-markers) for the full syntax.
+See [Suppression markers](/reference/suppression-markers) for the full syntax.
 
 ### `emoji` and test fixtures
 
@@ -100,7 +100,7 @@ straitjacket --no-comments        # the mode, alongside every other rule
 straitjacket --only no-comments   # just show me the comments (implies the mode)
 ```
 
-or check it into [`straitjacket.toml`](/docs/reference/config-file) with
+or check it into [`straitjacket.toml`](/reference/config-file) with
 `no-comments = true`.
 
 A leading file header is permitted — ordinary comments are allowed in the first
@@ -124,7 +124,7 @@ Two things that look like comments are never flagged:
 
 The scanner is deterministic, not a per-language parser, so an exotic literal (a
 regex literal, a heredoc) can fool it — suppress with a
-[marker](/docs/reference/suppression-markers) as usual, or grandfather a file
+[marker](/reference/suppression-markers) as usual, or grandfather a file
 with `straitjacket-allow-file:no-comments`.
 
 ## Severity and exit code

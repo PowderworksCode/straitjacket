@@ -6,7 +6,7 @@ order: 4
 
 Straitjacket runs every rule at its strictest by default. You ratchet *down* from
 there. This guide covers the common adjustments; the full flag list is in the
-[CLI reference](/docs/reference/cli).
+[CLI reference](/reference/cli).
 
 ## Run only some rules
 
@@ -18,7 +18,7 @@ straitjacket --skip motion        # everything except this rule
 `--only` and `--skip` take comma-separated rule ids. An **unknown id is an
 error** — the run stops with exit code `2` rather than silently scanning with a
 rule you thought you had turned off. See every id in the
-[rules reference](/docs/reference/rules) or with `straitjacket --list-rules`.
+[rules reference](/reference/rules) or with `straitjacket --list-rules`.
 
 ## Adjust thresholds
 
@@ -38,7 +38,7 @@ straitjacket --max-nesting 4    # deep-nesting depth budget (0 disables)
 ## Exempt paths from a rule
 
 `file-size` and `stray-todo` take path prefixes in the
-[config file](/docs/reference/config-file), which is usually tidier than
+[config file](/reference/config-file), which is usually tidier than
 scattering markers through the files themselves:
 
 ```toml
@@ -69,7 +69,7 @@ established repository usually turns up a lot.
 ## Make it stick
 
 Rather than remember these flags for every run, commit a
-[`straitjacket.toml`](/docs/reference/config-file) to the repo — the same
+[`straitjacket.toml`](/reference/config-file) to the repo — the same
 settings in one file, picked up automatically by every run and by CI:
 
 ```toml
