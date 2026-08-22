@@ -1,0 +1,22 @@
+---
+title: Contributing
+description: Report a pattern Straitjacket should catch, or a false positive it shouldn't.
+order: 2
+---
+
+LLMs invent new tells constantly, and everyone's "Yuck!" is a little different. If
+you've spotted a pattern Straitjacket should catch — or a false positive it
+shouldn't! — [**file an issue**](https://github.com/PowderworksCode/straitjacket/issues).
+Concrete examples help most. Three things especially wanted:
+
+- **New rules** — a deterministic smell that generalizes across repos and is
+  visible in the text of a file.
+- **False positives** — a place a rule fires on something that is genuinely
+  fine. The most useful report is the smallest file that reproduces it.
+- **Language coverage** — a rule that should fire on a file type it currently
+  skips, or skips a file type it shouldn't.
+
+Pull requests are welcome on
+[the repository](https://github.com/PowderworksCode/straitjacket). Straitjacket
+scans itself under its own rules, so `straitjacket` should be clean before you
+open one.

@@ -1,0 +1,151 @@
+---
+title: CLI
+description: Every command-line flag, the output format, exit codes, and installation details.
+order: 2
+---
+
+```
+straitjacket [OPTIONS] [PATHS]... [COMMAND]
+```
+
+With no arguments, Straitjacket scans the paths from your configuration, then
+falls back to the current directory (`.`), honoring `.gitignore`. Pass one or
+more files or directories to scan those instead.
+
+## Examples
+
+```sh
+straitjacket                       # scan the current directory (honors .gitignore)
+straitjacket src tests             # scan specific paths
+straitjacket --format json         # machine-readable output
+straitjacket --only emoji,color
+straitjacket --skip motion         # ratchet rules off
+straitjacket --max-lines 800       # tighter file-size budget (0 disables the rule)
+straitjacket --max-nesting 4       # tighter nesting budget (0 disables the rule)
+straitjacket --no-comments         # no-comments mode: none are allowed
+straitjacket --include-json        # also scan .json (skipped by default)
+straitjacket --no-ignore           # don't respect .gitignore / hidden-file rules
+straitjacket --no-fail             # report but always exit 0
+straitjacket --sarif straitjacket.sarif
+straitjacket instructions          # print the repository policy for agents
+straitjacket --list-rules --format json   # the rule manifest, for tooling
+```
+
+## Options
+
+| flag | default | effect |
+|------|---------|--------|
+| `[PATHS]...` | config, then `.` | Files or directories to scan. |
+| `--format <text\|json\|sarif>` | `text` | Output format written to stdout. `json` is machine-readable; `sarif` emits SARIF 2.1.0 for [GitHub code scanning](/docs/guides/ci#sarif--inline-pr-annotations). |
+| `--only <ids>` | — | Run only these rules (comma-separated ids). |
+| `--skip <ids>` | — | Skip these rules (comma-separated ids). |
+| `--max-lines <n>` | `1500` | `file-size` line budget. `0` disables the rule. |
+| `--max-nesting <n>` | `8` | `deep-nesting` indentation-depth budget. `0` disables the rule. |
+| `--no-comments` | off | Flag every comment (the opt-in [no-comments mode](/docs/reference/rules#no-comments-mode)). `--only no-comments` implies it. |
+| `--include-json` | off | Also scan `.json` files (skipped by default as generated/config data). |
+| `--no-ignore` | off | Don't respect `.gitignore`, `.ignore`, or hidden-file conventions; scan everything. |
+| `--no-fail` | off | Exit `0` even when findings exist (report-only). |
+| `--no-fail-on-unused-markers` | off | Don't report suppression markers that suppress nothing. |
+| `--sarif <path>` | — | Write a SARIF report to this path *in addition to* stdout. |
+| `--config <path>` | — | Use this config file instead of discovering [`straitjacket.toml`](/docs/reference/config-file). |
+| `--no-config` | off | Ignore checked-in configuration; use only flags and defaults. |
+| `--list-rules` | off | List all known rules and exit. With `--format json`, emits the [rule manifest](#the-rule-manifest). |
+| `-h`, `--help` | — | Print help and exit. |
+| `-V`, `--version` | — | Print the version and exit. |
+
+## The rule manifest
+
+`--list-rules` prints a readable table by default. With `--format json` it emits
+a machine-readable manifest of everything this binary enforces — every rule, the
+rules it used to carry, and the tunable defaults:
+
+```sh
+straitjacket --list-rules --no-config --format json
+```
+
+```json
+{
+  "schema": "straitjacket.rules/1",
+  "version": "0.1.1",
+  "rules": [
+    { "id": "color", "summary": "hardcoded color literal", "default_enabled": true }
+  ],
+  "removed": ["exact-clone"],
+  "defaults": { "max-lines": 1500, "max-nesting": 8 }
+}
+```
+
+Pass `--no-config` when you want the built-in defaults rather than the ones a
+checked-in `straitjacket.toml` resolves to.
+
+The `removed` list is what lets a tool tell a withdrawn rule from a typo. It is
+also how this documentation is verified: the manifest is exported to
+`site/content/rules.json`, and the site's tests fail the build if a page
+documents a rule the binary does not have, omits one it does, or quotes a
+default that has moved. `--format sarif` is rejected here — SARIF describes
+findings, not rules.
+
+## Commands
+
+| command | effect |
+|---------|--------|
+| `instructions` | Print the active repository policy — the rules as prose constraints, resolved from your `straitjacket.toml`. Written to be pasted into a `CLAUDE.md`, an `AGENTS.md`, or an agent hook, so the thing generating the code knows the rules before it writes any. |
+
+## Output format
+
+In text mode, each finding is one line, followed by an indented message and,
+where there is one, a `help:` line:
+
+```
+src/theme.ts:42:7  [color]  #1e1e1e
+  hardcoded color literal
+  help: use a theme token or CSS variable
+```
+
+That reads as `path:line:col  [rule]  matched`. When the scan is clean you get
+`straitjacket: ok — no findings in N file(s)`; otherwise the summary reports the
+counts:
+
+```
+straitjacket: 5 error(s), 0 warning(s) across 128 file(s); 0 suppressed
+```
+
+Warnings would be tagged `(warn)` after the rule id, but every built-in rule
+shipped today reports at error level, so the warning count is `0` in practice.
+
+Notes about configuration go to **stderr**, so stdout stays clean and
+`--format json` and `--format sarif` can be piped directly.
+
+`.json` is skipped by default — it's almost always generated or config data, not
+code or prose meant to be read by humans. Pass `--include-json` to scan it too.
+
+## Exit codes
+
+| code | meaning |
+|------|---------|
+| `0` | Clean, or only warnings, or `--no-fail` set. |
+| `1` | At least one error-level finding. |
+| `2` | A configuration or operational failure — a malformed config, an unknown rule id, an unreadable path. Not a finding, and worth distinguishing from one in CI. |
+
+## Installing
+
+Prebuilt binary — Linux `x86_64`/`aarch64` (static musl, so one build runs on
+any distribution regardless of glibc) and macOS `arm64`/`x86_64`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
+```
+
+It verifies the download against the release `SHA256SUMS` and installs to
+`~/.local/bin`. Set `STRAITJACKET_INSTALL_DIR` to install somewhere else, or
+`STRAITJACKET_VERSION` to pin a tag instead of taking the latest.
+
+From source, on any platform with a Rust toolchain:
+
+```sh
+cargo install straitjacket
+```
+
+Archives for every supported target, with a `SHA256SUMS` file, are attached to
+[every release](https://github.com/PowderworksCode/straitjacket/releases).
+There is no prebuilt Windows binary yet; build from source with `cargo install`.
