@@ -1,14 +1,14 @@
-import defaultMdxComponents from "fumadocs-ui/mdx";
 import type { MDXComponents } from "mdx/types";
+import {
+  getPowderworksMDXComponents,
+  useMDXComponents as usePowderworksMDXComponents,
+} from "@thepowderworks/fumadocs/mdx";
 
 export function getMDXComponents(components?: MDXComponents) {
-  return {
-    ...defaultMdxComponents,
-    ...components,
-  } satisfies MDXComponents;
+  return getPowderworksMDXComponents(components);
 }
 
-export const useMDXComponents = getMDXComponents;
+export const useMDXComponents = usePowderworksMDXComponents;
 
 declare global {
   type MDXProvidedComponents = ReturnType<typeof getMDXComponents>;

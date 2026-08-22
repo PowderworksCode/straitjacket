@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@orama/orama": "^3.1.18",
+    "@thepowderworks/fumadocs": "github:PowderworksCode/docs",
     "cnfast": "^0.0.8",
     "fumadocs-core": "16.11.1",
     "fumadocs-mdx": "15.1.0",
@@ -35,5 +36,8 @@
     "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3",
     "wrangler": "^4.123.0"
-  }
+  },
+  "trustedDependencies": [
+    "@thepowderworks/fumadocs"
+  ]
 }

@@ -6,6 +6,7 @@
       "name": "site",
       "dependencies": {
         "@orama/orama": "^3.1.18",
+        "@thepowderworks/fumadocs": "github:PowderworksCode/docs",
         "cnfast": "^0.0.8",
         "fumadocs-core": "16.11.1",
         "fumadocs-mdx": "15.1.0",
@@ -30,6 +31,9 @@
       },
     },
   },
+  "trustedDependencies": [
+    "@thepowderworks/fumadocs",
+  ],
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
 
@@ -344,6 +348,8 @@
     "@tailwindcss/oxide-win32-x64-msvc": ["@tailwindcss/oxide-win32-x64-msvc@4.3.2", "", { "os": "win32", "cpu": "x64" }, "sha512-QI9BO7KlNZsp2GuO0jwAAj5jCDABOKXRkCk2XuKTSaNEFSdfzqswYVTtCHBNKHLsqyjFyFkqlDiwkNbTYSssMQ=="],
 
     "@tailwindcss/postcss": ["@tailwindcss/postcss@4.3.2", "", { "dependencies": { "@alloc/quick-lru": "^5.2.0", "@tailwindcss/node": "4.3.2", "@tailwindcss/oxide": "4.3.2", "postcss": "^8.5.15", "tailwindcss": "4.3.2" } }, "sha512-rjVWYCa7Ngbi5AarT6k8TkxUG3Wl1QKzHdIZVsjZSzf36Jmo2IKZt/NHRAwly8oDkbBOH0YTu+CHuf9jPxMc+g=="],
+
+    "@thepowderworks/fumadocs": ["@thepowderworks/fumadocs@github:PowderworksCode/docs#c830471", { "peerDependencies": { "@orama/orama": "^3.1.18", "fumadocs-core": "16.11.1", "fumadocs-ui": "16.11.1", "next": ">=16.2.0 <17", "react": ">=19.2.0 <20", "react-dom": ">=19.2.0 <20" } }, "PowderworksCode-docs-c830471", "sha512-GoiAIW9SPM0qbQa4y6gMBSte5X2MX2umEQEuK3yj/nwpS0/uVNVjMsKFDnhu9B7uZCx/scbvCeFN+9qs5ZtMKw=="],
 
     "@types/debug": ["@types/debug@4.1.13", "", { "dependencies": { "@types/ms": "*" } }, "sha512-KSVgmQmzMwPlmtljOomayoR89W4FynCAi3E8PPs7vmDVPe84hT+vGPKkJfThkmXs0x0jAaa9U8uW8bbfyS2fWw=="],
 

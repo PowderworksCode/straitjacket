@@ -1,15 +1,19 @@
 "use client";
-import { RootProvider } from "fumadocs-ui/provider/next";
+
+import { PowderworksProvider } from "@thepowderworks/fumadocs/provider";
 import type { ReactNode } from "react";
 import SearchDialog from "@/components/search";
+import { translations } from "@/lib/i18n";
 
 export function Provider({ children }: { children: ReactNode }) {
   return (
-    <RootProvider
+    <PowderworksProvider
+      lang="en"
+      translations={translations}
       search={{ SearchDialog }}
       theme={{ defaultTheme: "dark", enableSystem: false }}
     >
       {children}
-    </RootProvider>
+    </PowderworksProvider>
   );
 }
