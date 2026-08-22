@@ -1,7 +1,43 @@
 // straitjacket-allow-file:color — the sample terminal output quotes a color
 // finding, so the literal is the thing being demonstrated.
 // straitjacket-allow-file:emoji — likewise for the emoji finding below.
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+};
+
+const INSTALL =
+  "curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh";
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Straitjacket",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Linux, macOS",
+  description:
+    "A fast, deterministic scanner that flags the weird code and text LLMs produce. One static Rust binary, no runtime, drops into any repo's CI.",
+  url: "https://straitjacket.dev",
+  codeRepository: "https://github.com/PowderworksCode/straitjacket",
+  downloadUrl:
+    "https://github.com/PowderworksCode/straitjacket/releases/latest",
+  isAccessibleForFree: true,
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  author: {
+    "@type": "Organization",
+    name: "Powderworks",
+    url: "https://powderworks.dev",
+  },
+  license: "https://github.com/PowderworksCode/straitjacket/blob/main/LICENSE",
+};
 
 const RULES = [
   {
@@ -30,12 +66,13 @@ const RULES = [
   },
 ];
 
-const INSTALL =
-  "curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh";
-
 export default function HomePage() {
   return (
     <main className="flex flex-1 flex-col">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-6 py-10 md:grid-cols-[minmax(0,1fr)_1.4fr] md:py-14">
         <figure className="mx-auto w-full max-w-[200px] md:justify-self-center lg:max-w-[240px]">
           <img
