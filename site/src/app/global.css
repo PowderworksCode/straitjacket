@@ -1,7 +1,21 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
-@import "@thepowderworks/fumadocs/theme.css";
+
+/* The shared package's nav markup uses these class names; keep them styled
+ * here in this site's own visual language instead of importing the fleet
+ * theme's paper-and-flame palette. */
+.pw-nav-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pw-nav-mark {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 0.125rem;
+}
 
 html {
   scrollbar-gutter: stable;
