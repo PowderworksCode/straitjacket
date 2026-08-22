@@ -13,7 +13,9 @@ const WHEN_TO_USE = `# Straitjacket
 - You want to enforce a house style mechanically: no emoji in source, colors only as theme tokens, files under a line budget, nesting under a depth budget, no deferred-work markers left in comments.
 - You are auditing a codebase for signs of unreviewed machine-written content before adopting or refactoring it.
 
-Not a fit when findings need type information, data flow, or cross-file reasoning — every rule is deliberately lexical, so it runs on any stack but cannot judge semantics.
+Findings come from deterministic pattern checks on file text, so they flag what
+is visible in the source without interpreting what it means. Not a fit when a
+check needs type information, data flow, or cross-file reasoning.
 
 ## How to get it
 

@@ -2,8 +2,7 @@
 
 The documentation site for [Straitjacket](../README.md), served at
 [straitjacket.dev](https://straitjacket.dev). Built with
-[Fumadocs](https://fumadocs.dev) (Next.js, static export) and structured around
-[Diátaxis](https://diataxis.fr/).
+[Fumadocs](https://fumadocs.dev) (Next.js, static export).
 
 ## Develop
 
@@ -14,8 +13,9 @@ bun run dev
 
 Open http://localhost:3000.
 
-Content lives in `content/docs/` as MDX, organized into the four Diátaxis
-quadrants — `tutorials/`, `guides/`, `reference/`, `explanation/`. Sidebar order
+Content lives in `content/docs/` as MDX: an introduction and getting-started
+tutorial, then how-to guides (`guides/`) and reference (`reference/`) after the
+Diátaxis framework, plus project pages under `about/`. Sidebar order
 is controlled by the `meta.json` in each folder.
 
 ## Build

@@ -22,14 +22,11 @@ export default function AboutPage() {
           repository&rsquo;s CI regardless of language or stack.
         </p>
         <p>
-          Every rule is lexical — it reads patterns off the bytes rather than
-          parsing the language — which is exactly why it works everywhere and
-          exactly what it cannot do: judge semantics. The trade is deliberate,
-          and the reasoning is written down in{" "}
-          <Link href="/docs/explanation" className="underline">
-            the explanation docs
-          </Link>{" "}
-          and in{" "}
+          Every rule runs on the text of a file — the same binary works across
+          every language and stack, no toolchain required. The trade is that
+          findings are pattern-level: Straitjacket tells you what is in the
+          source, not what it means. The reasoning behind the rule set is
+          written down in{" "}
           <Link href="/docs/about/philosophy" className="underline">
             the project philosophy
           </Link>
