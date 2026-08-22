@@ -175,7 +175,7 @@
 
     "pathe": ["pathe@2.0.3", "", {}, "sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w=="],
 
-    "powderworks-docs": ["powderworks-docs@github:PowderworksCode/docs#04a3709", { "dependencies": { "marked": "^16.4.1" }, "bin": { "powderworks-docs": "./src/cli.mjs" } }, "PowderworksCode-docs-04a3709", "sha512-ORLxaXidixQcpIsVCUyV5YaLoRdsC5oAHUgjsnFzf46esxfreUN9pBFS1AbeAalzvE3pdHWOunDghVFlf121Vg=="],
+    "powderworks-docs": ["powderworks-docs@github:PowderworksCode/docs#1e07fed", { "dependencies": { "marked": "^16.4.1" }, "bin": { "powderworks-docs": "./src/cli.mjs" } }, "PowderworksCode-docs-1e07fed", "sha512-vAb+u78RUR9HJB6bL9sWpVt5aNwkwD6x+0+0KWkDj6QYahkPpYROj4y+PvJNPDwn6jurLhqLbTMgJITr6w7gTQ=="],
 
     "semver": ["semver@7.8.5", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA=="],
 
