@@ -15,6 +15,11 @@ export const metadata: Metadata = {
   },
   description:
     "Straitjacket is a fast, deterministic scanner that flags the weird code and text LLMs tend to generate. One static Rust binary, drops into any CI.",
+  openGraph: {
+    type: "website",
+    siteName: "Straitjacket",
+    images: ["/og/docs/image.png"],
+  },
 };
 
 export default function Layout({ children }: LayoutProps<"/">) {
