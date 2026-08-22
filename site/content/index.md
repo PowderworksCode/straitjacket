@@ -5,7 +5,7 @@ description: A secret scanner, but for slop.
 
 <!-- straitjacket-allow-file:emoji — the sample scan output quotes an emoji finding, so the literal is what is being demonstrated -->
 
-# Straitjacket
+<p class="cover"><img src="/strait-waistcoat.jpg" alt="Engraving of a patient restrained in a strait-waistcoat" width="220"></p>
 
 **A secret scanner, but for slop.**
 
