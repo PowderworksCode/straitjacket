@@ -1,4 +1,8 @@
 {
   "title": "Explanation",
-  "pages": ["lexical-scanning", "no-comments"]
+  "defaultOpen": true,
+  "pages": [
+    "lexical-scanning",
+    "no-comments"
+  ]
 }

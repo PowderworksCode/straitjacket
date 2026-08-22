@@ -1,6 +1,6 @@
 ---
-title: Documentation
-description: Everything on running Straitjacket — tutorials, how-to guides, reference, and the reasoning behind the rules.
+title: Introduction
+description: What Straitjacket is, where everything lives in the docs, and the fastest way to a first scan.
 ---
 
 Straitjacket is a fast, deterministic scanner that flags the weird code and text
@@ -9,15 +9,12 @@ configurable defaults — and flags anything it finds. It's a single static Rust
 binary with no runtime dependencies, so it drops into almost any environment or
 repo's CI, regardless of language or stack.
 
-These docs follow the [Diátaxis](https://diataxis.fr/) framework — four kinds of
-documentation, each answering a different question:
+If you're new here, start with the [Getting started
+tutorial](/docs/getting-started): install, first scan, first finding, end to
+end. Everything else follows the [Diátaxis](https://diataxis.fr/) framework —
+each kind of documentation answers a different question:
 
 <Cards>
-  <Card
-    title="Tutorials"
-    href="/docs/tutorials/getting-started"
-    description="Learning-oriented. Start here: install Straitjacket and run your first scan end to end."
-  />
   <Card
     title="How-to guides"
     href="/docs/guides/ci"
@@ -56,5 +53,5 @@ straitjacket
 Everything is on by default — Straitjacket runs at its max, and you ratchet down
 with `--skip`. A first run against an established repository will find a lot;
 add `--no-fail` to read the report without failing your shell. See the
-[Getting started tutorial](/docs/tutorials/getting-started) for a guided
+[Getting started tutorial](/docs/getting-started) for a guided
 walkthrough.

@@ -75,7 +75,7 @@ export default function HomePage() {
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
-              href="/docs/tutorials/getting-started"
+              href="/docs/getting-started"
               className="rounded-full bg-fd-primary px-6 py-2.5 text-sm font-medium text-fd-primary-foreground transition-colors hover:bg-fd-primary/90"
             >
               Get started
@@ -153,21 +153,23 @@ export default function HomePage() {
           </div>
           <pre className="overflow-x-auto rounded-xl border bg-fd-card p-5 text-sm leading-relaxed">
             <code>
-              <span className="text-fd-muted-foreground">$ </span>straitjacket
+              <span className="text-fd-muted-foreground">$ straitjacket</span>
               {"\n\n"}
-              src/theme.ts:42:7 <span className="text-fd-primary">[color]</span>{" "}
-              #1e1e1e{"\n"}
-              src/icons/Logo.tsx:12:5{" "}
-              <span className="text-fd-primary">[inline-svg]</span> &lt;svg
-              {"\n"}
-              docs/setup.md:3:1 <span className="text-fd-primary">[emoji]</span>{" "}
-              🚀{"\n"}
-              src/api/handlers.ts:1:1{" "}
-              <span className="text-fd-primary">[file-size]</span> 2214 lines
-              {"\n"}
-              src/worker.ts:88:31{" "}
-              <span className="text-fd-primary">[deep-nesting]</span> nesting
-              depth 9{"\n\n"}
+              {"src/theme.ts:42:7  "}
+              <span className="text-fd-primary">[color]</span>
+              {"  #1e1e1e\n"}
+              {"src/icons/Logo.tsx:12:5  "}
+              <span className="text-fd-primary">[inline-svg]</span>
+              {"  <svg\n"}
+              {"docs/setup.md:3:1  "}
+              <span className="text-fd-primary">[emoji]</span>
+              {"  🚀\n"}
+              {"src/api/handlers.ts:1:1  "}
+              <span className="text-fd-primary">[file-size]</span>
+              {"  2214 lines\n"}
+              {"src/worker.ts:88:31  "}
+              <span className="text-fd-primary">[deep-nesting]</span>
+              {"  nesting depth 9\n\n"}
               <span className="text-fd-muted-foreground">
                 straitjacket: 5 error(s), 0 warning(s) across 128 file(s); 0
                 suppressed
@@ -189,7 +191,7 @@ export default function HomePage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/docs/tutorials/getting-started"
+              href="/docs/getting-started"
               className="rounded-full bg-fd-primary px-6 py-2.5 text-sm font-medium text-fd-primary-foreground transition-colors hover:bg-fd-primary/90"
             >
               Get started

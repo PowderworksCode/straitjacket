@@ -1,7 +1,9 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { appName, gitConfig } from "./shared";
 
-export function baseOptions(): BaseLayoutProps {
+export function baseOptions(
+  links: BaseLayoutProps["links"] = [],
+): BaseLayoutProps {
   return {
     nav: {
       title: (
@@ -18,13 +20,7 @@ export function baseOptions(): BaseLayoutProps {
         </span>
       ),
     },
-    links: [
-      { text: "Tutorials", url: "/docs/tutorials", active: "nested-url" },
-      { text: "Guides", url: "/docs/guides", active: "nested-url" },
-      { text: "Reference", url: "/docs/reference", active: "nested-url" },
-      { text: "Explanation", url: "/docs/explanation", active: "nested-url" },
-      { text: "About", url: "/docs/about", active: "nested-url" },
-    ],
+    links,
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };
 }

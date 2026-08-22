@@ -1,5 +1,6 @@
 {
   "title": "Reference",
+  "defaultOpen": true,
   "pages": [
     "rules",
     "cli",
