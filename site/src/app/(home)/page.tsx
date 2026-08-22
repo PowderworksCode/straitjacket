@@ -82,17 +82,6 @@ export default function HomePage() {
             width={1148}
             height={1814}
           />
-          <figcaption className="mt-3 text-center text-xs text-fd-muted-foreground">
-            Insane patient in a strait-waistcoat. Wellcome Collection
-            (L0011301),{" "}
-            <a
-              className="underline"
-              href="https://creativecommons.org/licenses/by/4.0"
-            >
-              CC BY 4.0
-            </a>
-            .
-          </figcaption>
         </figure>
 
         <div className="flex flex-col items-start text-left">
@@ -242,6 +231,26 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <footer className="mx-auto w-full max-w-6xl px-6 pb-6">
+        <p className="text-center text-[11px] text-fd-muted-foreground/60">
+          Banner engraving:{" "}
+          <a
+            className="underline"
+            href="https://wellcomecollection.org/works/ckwscya3"
+          >
+            Insane patient in a strait-waistcoat
+          </a>
+          , Wellcome Collection (L0011301),{" "}
+          <a
+            className="underline"
+            href="https://creativecommons.org/licenses/by/4.0"
+          >
+            CC BY 4.0
+          </a>
+          .
+        </p>
+      </footer>
     </main>
   );
 }
