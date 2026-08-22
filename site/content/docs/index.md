@@ -14,23 +14,9 @@ If you're new here, start with the [Getting started
 tutorial](/docs/getting-started): install, first scan, first finding, end to
 end. From there:
 
-<Cards>
-  <Card
-    title="How-to guides"
-    href="/docs/guides/ci"
-    description="Recipes for specific jobs: wire it into CI, suppress a false positive, exclude generated files, tune the rules."
-  />
-  <Card
-    title="Reference"
-    href="/docs/reference/rules"
-    description="Every rule, every CLI flag, every Action input, and the exact suppression-marker syntax."
-  />
-  <Card
-    title="About"
-    href="/docs/about/philosophy"
-    description="Background & philosophy, how to contribute a new smell, and the license."
-  />
-</Cards>
+- [How-to guides](/docs/guides/ci) — Recipes for specific jobs: wire it into CI, suppress a false positive, exclude generated files, tune the rules.
+- [Reference](/docs/reference/rules) — Every rule, every CLI flag, every Action input, and the exact suppression-marker syntax.
+- [Project](/docs/about/philosophy) — Background & philosophy, how to contribute a new smell, and the license.
 
 ## In a hurry?
 
