@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `install.sh` reported a refused request as a repository with no releases. The
+  fetch was piped straight into `sed`, so its exit status was hidden behind
+  `head` and an empty parse looked like an empty repository -- the message sent
+  whoever read it looking in the wrong place. It now reads the response before
+  parsing it, and says what is usually true: GitHub allows 60 unauthenticated
+  API requests an hour per address, CI runners share addresses, and the fix is
+  a token or a pinned version.
+- Downloads retry. A reset connection on the way to a release is not a reason
+  to fail a build.
+- A failed installation says so. In a checks list an install that could not
+  happen and a scan that found something are both a red job ending in `exit
+  code 1`; the action now annotates the first as an installation failure, and
+  points at the `token` input when rate limiting is the cause.
+
 ### Added
 
 - `site/` — the source for [straitjacket.dev](https://straitjacket.dev), moved
