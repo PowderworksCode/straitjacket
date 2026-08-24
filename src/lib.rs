@@ -1,4 +1,5 @@
 pub mod config;
+pub mod diff;
 pub mod finding;
 pub mod instructions;
 pub mod language;

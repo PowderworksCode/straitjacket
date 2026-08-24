@@ -1,5 +1,5 @@
 mod color;
-mod comments;
+pub(crate) mod comments;
 mod deep_nesting;
 mod emoji;
 mod file_size;
