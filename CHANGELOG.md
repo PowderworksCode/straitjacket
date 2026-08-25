@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-25
+
+### Fixed
+
+- Straitjacket passes its own `no-comments` rule again. `site/wrangler.toml`
+  explained itself in three lines the rule does not allow -- one past the ten
+  the file header gets, and two more down beside the setting they described.
+  The reasoning is intact, folded into the header.
+- The `action` CI job fails on findings. It did not, so the first thing to
+  notice the above was the release smoke test, after the tag was pushed and
+  after the release was published. The check that catches a finding has to run
+  where a finding can still be fixed.
+
 ## [0.1.2] - 2026-08-25
 
 ### Fixed
@@ -104,7 +117,8 @@ prebuilt archives for Linux (`x86_64`, `aarch64`, static musl) and macOS
   `[facts]`, `[effects]` or `[errors]` section is rejected with an error naming
   the rules that went away.
 
-[Unreleased]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/PowderworksCode/straitjacket/releases/tag/v0.1.0

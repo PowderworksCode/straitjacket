@@ -67,7 +67,7 @@ cargo install straitjacket
 ## GitHub Actions
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.2
+- uses: PowderworksCode/straitjacket@v0.1.3
 ```
 
 That installs Straitjacket and scans the checked-out repository, failing the
@@ -81,7 +81,7 @@ permissions:
 
 steps:
   - uses: actions/checkout@v5
-  - uses: PowderworksCode/straitjacket@v0.1.2
+  - uses: PowderworksCode/straitjacket@v0.1.3
     with:
       sarif-file: straitjacket.sarif
       fail-on-findings: "false"
@@ -95,7 +95,7 @@ YAML rather than by assembling an argument string:
 
 | input | default | meaning |
 | --- | --- | --- |
-| `version` | `latest` | Release tag to install, such as `v0.1.2`. |
+| `version` | `latest` | Release tag to install, such as `v0.1.3`. |
 | `paths` | `.` | Files or directories to scan. |
 | `only` | none | Run only these rules. |
 | `skip` | none | Disable these rules. |
@@ -116,14 +116,14 @@ YAML rather than by assembling an argument string:
 these mean the same thing:
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.2
+- uses: PowderworksCode/straitjacket@v0.1.3
   with:
     paths: src tests
     only: color,emoji
 ```
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.2
+- uses: PowderworksCode/straitjacket@v0.1.3
   with:
     paths: |
       src

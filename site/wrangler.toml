@@ -1,14 +1,13 @@
-# Cloudflare Workers config for the straitjacket docs site.
-#
-# The site is a Next.js static export (`output: 'export'` -> ./out), deployed
-# as a Worker over static assets. The worker exists for one job: when an agent
-# asks for a docs page with `Accept: text/markdown`, it serves that page's
-# markdown twin (the /llms.mdx/... assets) instead of the HTML. Everything
-# else passes straight through to the assets, untouched.
-#
-# Workers Build settings — root directory `site`, build `bun run build`, deploy
-# `bun run deploy`. Both go through package.json so wrangler comes from the
-# lockfile; `npx wrangler` would fetch whatever is newest at deploy time.
+# Cloudflare Workers config for the straitjacket docs site: a Next.js static
+# export (`output: 'export'` -> ./out) served as a Worker over static assets.
+# The worker exists for one job -- when an agent asks for a docs page with
+# `Accept: text/markdown`, it serves that page's markdown twin (the
+# /llms.mdx/... assets) instead of the HTML -- which is why `run_worker_first`
+# below lists only /docs: every other path is served from assets without
+# invoking the worker at all. Workers Build settings are root directory
+# `site`, build `bun run build`, deploy `bun run deploy`; both go through
+# package.json so wrangler comes from the lockfile, where `npx wrangler`
+# would fetch whatever is newest at deploy time.
 name = "straitjacket"
 main = "worker.ts"
 compatibility_date = "2026-07-01"
@@ -18,6 +17,4 @@ directory = "./out"
 not_found_handling = "404-page"
 binding = "ASSETS"
 
-# Only docs pages can negotiate; every other path is served from assets
-# without invoking the worker at all.
 run_worker_first = ["/docs", "/docs/*"]
