@@ -75,8 +75,11 @@ inputs:
     default: "true"
   token:
     description: >-
-      Token used to download the release. Needed only while the Straitjacket
-      repository is private; a public release needs none.
+      Token used to read the release. Worth setting even for a public release:
+      GitHub allows 60 unauthenticated API requests an hour per address and CI
+      runners share addresses, so without one this eventually fails to install
+      at all. `${{ github.token }}` is enough; it needs no access to the
+      Straitjacket repository while that repository is public.
     required: false
     default: ""
 
@@ -89,6 +92,7 @@ runs:
   using: composite
   steps:
     - name: Install straitjacket
+      id: install
       shell: bash
       env:
         VERSION: ${{ inputs.version }}
@@ -100,7 +104,13 @@ runs:
         if [ "$VERSION" != "latest" ]; then
           export STRAITJACKET_VERSION="$VERSION"
         fi
-        sh "${ACTION_PATH}/install.sh"
+        # Failing to install is not the same as finding something, and at a
+        # glance in the checks list the two look identical: both are a red job
+        # whose log ends in `exit code 1`. Say which one this is.
+        if ! sh "${ACTION_PATH}/install.sh"; then
+          echo "::error title=Straitjacket could not be installed::The scan did not run. This is an installation failure, not a finding -- see the log above, and set the action's \`token\` input if it mentions rate limiting." >&2
+          exit 1
+        fi
         echo "$STRAITJACKET_INSTALL_DIR" >> "$GITHUB_PATH"
 
     # Inputs reach the script through the environment rather than through
