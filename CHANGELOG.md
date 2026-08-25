@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-25
+
 ### Fixed
 
 - `install.sh` reported a refused request as a repository with no releases. The
@@ -21,6 +23,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   happen and a scan that found something are both a red job ending in `exit
   code 1`; the action now annotates the first as an installation failure, and
   points at the `token` input when rate limiting is the cause.
+- `action.yml` loads again. The `token` input's description explained itself
+  with a live `${{ github.token }}`, and GitHub evaluates every expression it
+  finds in a manifest, descriptions included -- so the sentence documenting the
+  token stopped the action loading for everyone on `@main`. CI now uses the
+  action on every change, because nothing else here reads that file.
 
 ### Added
 
@@ -97,6 +104,7 @@ prebuilt archives for Linux (`x86_64`, `aarch64`, static musl) and macOS
   `[facts]`, `[effects]` or `[errors]` section is rejected with an error naming
   the rules that went away.
 
-[Unreleased]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/PowderworksCode/straitjacket/releases/tag/v0.1.0
