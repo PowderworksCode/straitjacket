@@ -38,3 +38,23 @@ jobs:
       # is first exercised by the tag that publishes, which is the one moment
       # a mistake cannot be taken back.
       - run: scripts/publish.sh --dry-run
+
+  # The action manifest is loaded by GitHub, not by cargo, so nothing above
+  # would notice a mistake in it. Until this job existed, `action.yml` was
+  # first exercised by whoever depended on it -- and a manifest that does not
+  # parse fails their build before a single step of ours runs, with an error
+  # naming a line in this repository. Same argument as the publish dry run.
+  #
+  # Findings are not the point here and do not fail the job: what is being
+  # proved is that the manifest loads, the install works, and the scan runs.
+  action:
+    name: action
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./
+        with:
+          token: ${{ github.token }}
+          fail-on-findings: "false"
+          fail-on-unused-markers: "false"
