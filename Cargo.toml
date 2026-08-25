@@ -46,8 +46,5 @@ lto = true
 strip = true
 
 [package.metadata.cratebank]
-# Opted in: this repository is public, so its crate names are already
-# public. Without this the census records the build and withholds the
-# names, which for an open repository is precision nobody asked for.
 public = true
 repository = "https://github.com/PowderworksCode/straitjacket"
