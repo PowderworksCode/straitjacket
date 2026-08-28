@@ -22,6 +22,7 @@ await build(join(import.meta.dir, "..", "content"), out, {
   name: SITE_NAME,
   description: "A secret scanner, but for slop.",
   github: "PowderworksCode/straitjacket",
+  wordmark: SITE_NAME,
 });
 
 function tabTitlesByEmittedUrl(dir, trail = []) {
@@ -61,7 +62,8 @@ describe("rendered titles", () => {
     test(`${url} names itself in the tab`, () => {
       const html = readFileSync(file, "utf8");
       const title = /<title>([\s\S]*?)<\/title>/.exec(html)?.[1] ?? "";
-      const heading = /<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1] ?? "";
+      const heading = (/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1] ?? "")
+        .replace(/<[^>]*>/g, "");
 
       expect(title).not.toBe("");
       expect(title).not.toContain("undefined");
