@@ -2,28 +2,30 @@
 // frontmatter suite reads sources, and every rendered <title> said "undefined"
 // while the suite stayed green. So this builds the site and reads the output.
 //
-// A page's <title> and its <h1> come from one frontmatter field, by separate
-// paths through the generator. Asserting they agree catches either path
-// dropping the title, which is how the tab broke. A page may say `tab-title`
-// to break that tie on purpose; then the tab must be exactly what it asked
-// for, which is the same assertion pointed at a different source.
+// It runs the real build command out of package.json, pointed at a temporary
+// directory. Twice this suite restated that command's flags instead, and twice
+// they drifted, leaving it green against a site configured unlike the published
+// one. A tab and its heading come from one field by two paths, so asserting
+// they agree catches either path dropping it; a page declaring tab-title must
+// get exactly what it asked for instead.
 import { afterAll, describe, expect, test } from "bun:test";
-import { build } from "powderworks-docs/src/build.mjs";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+const SITE = join(import.meta.dir, "..");
 const SITE_NAME = "Straitjacket";
 const out = mkdtempSync(join(tmpdir(), "straitjacket-titles-"));
 afterAll(() => rmSync(out, { recursive: true, force: true }));
 
-await build(join(import.meta.dir, "..", "content"), out, {
-  siteUrl: "https://straitjacket.dev",
-  name: SITE_NAME,
-  description: "A secret scanner, but for slop.",
-  github: "PowderworksCode/straitjacket",
-  wordmarks: [{ text: SITE_NAME }],
-});
+const script = JSON.parse(readFileSync(join(SITE, "package.json"), "utf8")).scripts.build;
+const run = Bun.spawnSync(
+  ["sh", "-c", script.replace("rm -rf out && ", "").replace("--out out", `--out '${out}'`)],
+  {
+    cwd: SITE,
+    env: { ...process.env, PATH: `${join(SITE, "node_modules", ".bin")}:${process.env.PATH}` },
+  },
+);
 
 function tabTitlesByEmittedUrl(dir, trail = []) {
   const found = new Map();
@@ -50,20 +52,41 @@ function pages(dir, trail = []) {
   return found;
 }
 
-const built = pages(out);
-const overrides = tabTitlesByEmittedUrl(join(import.meta.dir, "..", "content"));
+const built = run.exitCode === 0 ? pages(out) : [];
+const overrides = tabTitlesByEmittedUrl(join(SITE, "content"));
 
 describe("rendered titles", () => {
+  test("the real build command succeeds", () => {
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+  });
+
   test("the build emitted a page for every section and leaf", () => {
     expect(built.length).toBeGreaterThan(15);
+  });
+
+  test("no name is set in its own face inside code", () => {
+    const inside = built.flatMap(({ url, file }) =>
+      [...readFileSync(file, "utf8").matchAll(/<(pre|code)\b[\s\S]*?<\/\1>/g)]
+        .filter((block) => block[0].includes('class="wordmark'))
+        .map(() => url));
+    expect(inside).toEqual([]);
+  });
+
+  test("the names given to the build are set where they appear", () => {
+    const named = [...script.matchAll(/--wordmark (?:"([^"]+)"|(\S+))/g)].map((m) => m[1] ?? m[2]);
+    expect(named.length).toBeGreaterThan(0);
+    const html = built.map(({ file }) => readFileSync(file, "utf8")).join("");
+    const set = named.filter((name) =>
+      html.includes(`>${name}<`) || new RegExp(`class="wordmark[^"]*">${name.split(/\s+/)[0]}`).test(html));
+    expect(set.length).toBeGreaterThan(0);
   });
 
   for (const { url, file } of built.sort((a, b) => a.url.localeCompare(b.url))) {
     test(`${url} names itself in the tab`, () => {
       const html = readFileSync(file, "utf8");
       const title = /<title>([\s\S]*?)<\/title>/.exec(html)?.[1] ?? "";
-      const heading = (/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1] ?? "")
-        .replace(/<[^>]*>/g, "");
+      const heading = (/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1] ?? "").replace(/<[^>]*>/g, "");
 
       expect(title).not.toBe("");
       expect(title).not.toContain("undefined");
