@@ -5,17 +5,17 @@ description: A secret scanner, but for slop.
 
 <!-- straitjacket-allow-file:emoji — the sample scan output quotes an emoji finding, so the literal is what is being demonstrated -->
 
-<p class="cover"><img src="/strait-waistcoat.jpg" alt="Engraving of a patient restrained in a strait-waistcoat" width="220"></p>
-
 **A secret scanner, but for slop.**
+
+[Get started](/getting-started/) · [Read the docs](/guides/) · [Browse the rules](/reference/rules/) · [GitHub](https://github.com/PowderworksCode/straitjacket)
+
+<p class="cover"><img src="/strait-waistcoat.jpg" alt="Engraving of a patient restrained in a strait-waistcoat" width="220"></p>
 
 Straitjacket is a fast, deterministic scanner that flags the weird code and
 text LLMs produce. It sweeps your files against a set of
 snobby-but-configurable rules and flags anything it finds — one static Rust
 binary, no runtime, so it drops into any repo's CI regardless of language or
 stack.
-
-[Get started](/getting-started/) · [Read the docs](/guides/) · [Browse the rules](/reference/rules/) · [GitHub](https://github.com/PowderworksCode/straitjacket)
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
