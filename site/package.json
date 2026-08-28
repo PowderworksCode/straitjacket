@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "rm -rf out && powderworks-docs build content --out out --site-url https://straitjacket.dev --name Straitjacket --description \"A secret scanner, but for slop.\" --github PowderworksCode/straitjacket --license MIT --logo /strait-face.png --static public",
+    "build": "rm -rf out && powderworks-docs build content --out out --site-url https://straitjacket.dev --name Straitjacket --description \"A secret scanner, but for slop.\" --github PowderworksCode/straitjacket --license MIT --logo /strait-face.png --by Powderworks --by-url https://powderworks.dev --static public",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "test": "bun test"
