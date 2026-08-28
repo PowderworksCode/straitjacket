@@ -26,3 +26,10 @@ releases, checksums, and the full commit history are public.
 If you want to shape what it catches — a new smell, a false positive you should
 not have to live with — the [contributing guide](/project/contributing/) is
 the way in.
+
+## Newsletter
+
+Releases, and notes on what the workshop is learning about building software
+with agents.
+
+<iframe class="embed" title="Subscribe to the Powderworks newsletter" src="https://newsletter.powderworks.dev/embed" scrolling="no"></iframe>

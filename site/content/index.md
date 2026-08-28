@@ -6,7 +6,7 @@ tab-title: Straitjacket by Powderworks
 
 <!-- straitjacket-allow-file:emoji — the sample scan output quotes an emoji finding, so the literal is what is being demonstrated -->
 
-<p class="cover"><img src="/strait-waistcoat.jpg" alt="Engraving of a patient restrained in a strait-waistcoat" width="220"></p>
+<p class="cover"><img src="/strait-waistcoat.jpg" alt="Engraving of a patient restrained in a strait-waistcoat" width="220"><span class="credit">An 1838 engraving of a <a href="https://en.wikipedia.org/wiki/Straitjacket">strait-waistcoat</a>.</span></p>
 
 **A secret scanner, but for slop.**
 
@@ -64,8 +64,3 @@ straitjacket: 5 error(s), 0 warning(s) across 128 file(s); 0 suppressed
 
 Encode your taste as deterministic checks and run them across everything an
 LLM writes — so you never have to go "Yuck!" by hand again.
-
----
-
-Banner engraving: *Insane patient in a strait-waistcoat*, Wellcome Collection
-(L0011301), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0).
