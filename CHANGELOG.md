@@ -6,6 +6,42 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-25
+
+### Fixed
+
+- Straitjacket passes its own `no-comments` rule again. `site/wrangler.toml`
+  explained itself in three lines the rule does not allow -- one past the ten
+  the file header gets, and two more down beside the setting they described.
+  The reasoning is intact, folded into the header.
+- The `action` CI job fails on findings. It did not, so the first thing to
+  notice the above was the release smoke test, after the tag was pushed and
+  after the release was published. The check that catches a finding has to run
+  where a finding can still be fixed.
+
+## [0.1.2] - 2026-08-25
+
+### Fixed
+
+- `install.sh` reported a refused request as a repository with no releases. The
+  fetch was piped straight into `sed`, so its exit status was hidden behind
+  `head` and an empty parse looked like an empty repository -- the message sent
+  whoever read it looking in the wrong place. It now reads the response before
+  parsing it, and says what is usually true: GitHub allows 60 unauthenticated
+  API requests an hour per address, CI runners share addresses, and the fix is
+  a token or a pinned version.
+- Downloads retry. A reset connection on the way to a release is not a reason
+  to fail a build.
+- A failed installation says so. In a checks list an install that could not
+  happen and a scan that found something are both a red job ending in `exit
+  code 1`; the action now annotates the first as an installation failure, and
+  points at the `token` input when rate limiting is the cause.
+- `action.yml` loads again. The `token` input's description explained itself
+  with a live `${{ github.token }}`, and GitHub evaluates every expression it
+  finds in a manifest, descriptions included -- so the sentence documenting the
+  token stopped the action loading for everyone on `@main`. CI now uses the
+  action on every change, because nothing else here reads that file.
+
 ### Added
 
 - `site/` — the source for [straitjacket.dev](https://straitjacket.dev), moved
@@ -81,6 +117,8 @@ prebuilt archives for Linux (`x86_64`, `aarch64`, static musl) and macOS
   `[facts]`, `[effects]` or `[errors]` section is rejected with an error naming
   the rules that went away.
 
-[Unreleased]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/PowderworksCode/straitjacket/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/PowderworksCode/straitjacket/releases/tag/v0.1.0

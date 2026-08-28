@@ -50,12 +50,18 @@ detect_target() {
     esac
 }
 
+# Retry a few times, because a reset connection on the way to a release is
+# not a reason to fail a build. Rate limiting is not retried away -- see the
+# message in `main` -- but a dropped connection usually is.
+RETRY="--retry 3 --retry-delay 2"
+
 # Fetch a URL to stdout, sending credentials only when they were provided.
 fetch() {
+    # shellcheck disable=SC2086
     if [ -n "${GITHUB_TOKEN:-}" ]; then
-        curl -sSfL -H "Authorization: Bearer ${GITHUB_TOKEN}" "$1"
+        curl -sSfL $RETRY -H "Authorization: Bearer ${GITHUB_TOKEN}" "$1"
     else
-        curl -sSfL "$1"
+        curl -sSfL $RETRY "$1"
     fi
 }
 
@@ -63,8 +69,14 @@ fetch() {
 #
 # Parsed out of the API response with sed rather than a JSON library, because
 # the whole point of this script is to run before anything is installed.
+#
+# The response is captured before it is parsed. Piping the fetch straight into
+# sed hides its exit status behind `head`, so a refused request looked exactly
+# like a repository with no releases -- and the message said so, which sent
+# whoever read it looking in the wrong place.
 latest_version() {
-    fetch "${API}/releases/latest" |
+    response=$(fetch "${API}/releases/latest") || return 1
+    printf '%s\n' "$response" |
         sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
         head -n 1
 }
@@ -135,10 +147,12 @@ download_asset() {
     elif [ -n "${GITHUB_TOKEN:-}" ]; then
         asset_api=$(fetch "${API}/releases/tags/${version}" | asset_url "$asset_name")
         [ -n "$asset_api" ] || die "release ${version} has no asset named ${asset_name}"
-        curl -sSfL -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        # shellcheck disable=SC2086
+        curl -sSfL $RETRY -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "Accept: application/octet-stream" "$asset_api" >"$asset_output"
     else
-        curl -sSfL "${DOWNLOAD}/${version}/${asset_name}" >"$asset_output"
+        # shellcheck disable=SC2086
+        curl -sSfL $RETRY "${DOWNLOAD}/${version}/${asset_name}" >"$asset_output"
     fi
 }
 
@@ -150,8 +164,12 @@ main() {
     target=$(detect_target)
     version=${STRAITJACKET_VERSION:-}
     if [ -z "$version" ]; then
-        version=$(latest_version) ||
-            die "could not read the latest release. Set STRAITJACKET_VERSION, or GITHUB_TOKEN if the repository is private"
+        version=$(latest_version) || die "could not read the latest release.
+  GitHub allows 60 unauthenticated API requests an hour per address, and CI
+  runners share addresses, so this is usually rate limiting rather than a
+  missing release. Set GITHUB_TOKEN -- any valid token raises the limit, and
+  it need not have access to this repository while it is public. Or pin
+  STRAITJACKET_VERSION, which skips the API entirely."
         [ -n "$version" ] || die "no published release found. Set STRAITJACKET_VERSION to install a specific tag"
     fi
 

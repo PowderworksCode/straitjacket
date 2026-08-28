@@ -22,6 +22,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # Every CI run contributes this build to the public compile-time census
+      # at <https://cratebank.io/>. It builds what the steps below would have
+      # built anyway, measured, so what is added here is mostly the measuring.
+      #
+      # `strict` because this is the build. A measurement that quietly did not
+      # happen would mean nothing built the project either, and a green check
+      # would be saying so about work that never ran.
+      - uses: PowderworksCode/cratebank/action@v0.1.1
+        with:
+          org-id: powderworks
+          strict: "true"
+
       # The toolchain comes from rust-toolchain.toml, which rustup installs on
       # first use, so no setup action decides the version.
       - run: cargo fmt --all --check
@@ -38,3 +50,23 @@ jobs:
       # is first exercised by the tag that publishes, which is the one moment
       # a mistake cannot be taken back.
       - run: scripts/publish.sh --dry-run
+
+  # The action manifest is loaded by GitHub, not by cargo, so nothing above
+  # would notice a mistake in it. Until this job existed, `action.yml` was
+  # first exercised by whoever depended on it -- and a manifest that does not
+  # parse fails their build before a single step of ours runs, with an error
+  # naming a line in this repository. Same argument as the publish dry run.
+  #
+  # It fails on findings, because the release smoke test does, and a finding
+  # that only surfaces there surfaces after the tag is pushed -- which is
+  # exactly what happened to v0.1.2. This job is the same scan, run early
+  # enough to be fixable.
+  action:
+    name: action
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./
+        with:
+          token: ${{ github.token }}

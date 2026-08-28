@@ -1,12 +1,14 @@
 # Cloudflare Workers config for the straitjacket docs site.
 #
 # The site is plain files from powderworks-docs, deployed as a Worker over
-# static assets. The worker exists for one job: when an agent asks for a docs
-# page with `Accept: text/markdown`, it serves that page's markdown twin (the
-# index.md file sitting beside each rendered page) instead of the HTML.
+# static assets. The worker exists for one job: when an agent asks for a page
+# with `Accept: text/markdown`, it serves that page's markdown twin (the
+# index.md file sitting beside each rendered page) instead of the HTML. Every
+# page can negotiate, so the worker runs first on every path.
 #
 # Workers Build settings — root directory `site`, build `bun run build`, deploy
-# `bun run deploy`.
+# `bun run deploy`. Both go through package.json so wrangler comes from the
+# lockfile, where `npx wrangler` would fetch whatever is newest at deploy time.
 name = "straitjacket"
 main = "worker.ts"
 compatibility_date = "2026-07-01"

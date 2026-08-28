@@ -1,6 +1,6 @@
 [package]
 name = "straitjacket"
-version = "0.1.1"
+version = "0.1.3"
 edition = "2024"
 description = "A fast, deterministic scanner that flags the weird code and text LLMs produce."
 license = "MIT"
@@ -44,3 +44,7 @@ let_underscore_must_use = "deny"
 [profile.release]
 lto = true
 strip = true
+
+[package.metadata.cratebank]
+public = true
+repository = "https://github.com/PowderworksCode/straitjacket"
