@@ -22,18 +22,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      # Every CI run contributes this build to the public compile-time census
-      # at <https://cratebank.io/>. It builds what the steps below would have
-      # built anyway, measured, so what is added here is mostly the measuring.
-      #
-      # `strict` because this is the build. A measurement that quietly did not
-      # happen would mean nothing built the project either, and a green check
-      # would be saying so about work that never ran.
-      - uses: PowderworksCode/cratebank/action@v0.1.1
-        with:
-          org-id: powderworks
-          strict: "true"
-
       # The toolchain comes from rust-toolchain.toml, which rustup installs on
       # first use, so no setup action decides the version.
       - run: cargo fmt --all --check

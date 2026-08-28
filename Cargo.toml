@@ -44,7 +44,3 @@ let_underscore_must_use = "deny"
 [profile.release]
 lto = true
 strip = true
-
-[package.metadata.cratebank]
-public = true
-repository = "https://github.com/PowderworksCode/straitjacket"
