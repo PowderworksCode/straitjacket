@@ -1,7 +1,7 @@
 ---
 title: How-to guides
 description: Recipes for getting a specific job done with Straitjacket.
-order: 2
+order: 3
 ---
 
 Each one is a focused recipe for a single job, assuming you already know the
