@@ -22,7 +22,7 @@ await build(join(import.meta.dir, "..", "content"), out, {
   name: SITE_NAME,
   description: "A secret scanner, but for slop.",
   github: "PowderworksCode/straitjacket",
-  wordmark: SITE_NAME,
+  wordmarks: [{ text: SITE_NAME }],
 });
 
 function tabTitlesByEmittedUrl(dir, trail = []) {
