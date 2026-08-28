@@ -1,0 +1,12 @@
+---
+title: License
+description: MIT for the code; CC BY 4.0 for the banner image.
+order: 3
+---
+
+Code is **MIT**.
+
+The banner image (`assets/strait-waistcoat.jpg`) — *Insane patient in a
+strait-waistcoat*, [Wellcome Collection](https://wellcomecollection.org/works/ckwscya3)
+(L0011301) — is licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0)
+and is **not** covered by the MIT license; reuse it under its own terms.

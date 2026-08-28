@@ -15,8 +15,8 @@ type Manifest = {
 };
 
 const ROOT = join(import.meta.dir, "..");
-const DOCS_DIR = join(ROOT, "content", "docs");
-const RULES_REFERENCE = join(DOCS_DIR, "reference", "rules.mdx");
+const DOCS_DIR = join(ROOT, "content");
+const RULES_REFERENCE = join(DOCS_DIR, "reference", "rules.md");
 const README = join(ROOT, "..", "README.md");
 
 const manifest: Manifest = JSON.parse(
@@ -31,7 +31,7 @@ function mdxFiles(dir: string): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...mdxFiles(full));
-    else if (entry.name.endsWith(".mdx")) out.push(full);
+    else if (entry.name.endsWith(".md")) out.push(full);
   }
   return out;
 }
