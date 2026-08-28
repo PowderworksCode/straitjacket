@@ -1,6 +1,7 @@
 ---
 title: Straitjacket
 description: A secret scanner, but for slop.
+tab-title: Straitjacket by Powderworks
 ---
 
 <!-- straitjacket-allow-file:emoji — the sample scan output quotes an emoji finding, so the literal is what is being demonstrated -->

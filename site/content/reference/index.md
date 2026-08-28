@@ -1,7 +1,7 @@
 ---
 title: Reference
 description: Specifications — every rule, flag, Action input, and marker.
-order: 4
+order: 5
 ---
 
 Dry, complete, and accurate. Come here to look something up, not to learn — the
