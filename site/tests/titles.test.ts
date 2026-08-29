@@ -2,13 +2,12 @@
 // frontmatter suite reads sources, and every rendered <title> said "undefined"
 // while the suite stayed green. So this builds the site and reads the output.
 //
-// It runs the real build command out of package.json, pointed at a temporary
-// directory, and reads the tab the registry names for the landing. Twice this
-// suite restated the build's flags instead, and twice they drifted, leaving it
-// green against a site configured unlike the published one. A tab and its
-// heading come from one field by two paths, so asserting they agree catches
-// either path dropping it; a page given a tab-title, in frontmatter or in
-// powderworks.toml, must get exactly the one it asked for instead.
+// It runs the build command out of package.json and reads the tab the registry
+// names, rather than restating either. Twice this suite restated the flags and
+// twice they drifted, staying green against a site unlike the published one.
+// A tab and its heading come from one field by two paths, so asserting they
+// agree catches either path dropping it; where a tab-title is given, in
+// frontmatter or in powderworks.toml, the tab must be exactly that.
 import { afterAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
