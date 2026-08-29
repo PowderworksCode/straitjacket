@@ -34,10 +34,7 @@ wasmer = { version = "7", default-features = false, features = ["sys", "cranelif
 # `pure` selects the Rust implementation instead, and naming blake3 here is what
 # unifies that feature across the whole graph.
 blake3 = { version = "1", default-features = false, features = ["pure"] }
-# TEMPORARY: pinned to the branch carrying beamte#3, which moves RoleTable out
-# of that crate's dev harness into its library. This must move back to the
-# default branch before this PR merges.
-beamte = { git = "https://github.com/PowderworksCode/beamte", branch = "claude/test-quality-checker-j5whfd" }
+beamte = { git = "https://github.com/PowderworksCode/beamte" }
 clap = { version = "4", features = ["derive"] }
 ignore = "0.4"
 inventory = "0.3"

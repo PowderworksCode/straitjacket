@@ -146,7 +146,7 @@ dependencies = [
 [[package]]
 name = "beamte"
 version = "0.0.0"
-source = "git+https://github.com/PowderworksCode/beamte?branch=claude%2Ftest-quality-checker-j5whfd#1cdf5233e8a811ae7b95237e4b06adce6dda27b0"
+source = "git+https://github.com/PowderworksCode/beamte#1287d32f60938d50dc4bdb0ab7a69f4c14619eeb"
 dependencies = [
  "serde_json",
 ]
