@@ -21,13 +21,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # ignore_words_list carries the identifiers codespell reads as prose and
       # would have us break: afterAll is the bun and jest hook, ser the serde
-      # module, statics the Rust items, and infact a sibling project. A
+      # module, statics the Rust items, implementors rustdoc's own heading, and
+          # infact a sibling project. A
       # repository's own .codespellrc adds to this list rather than replacing
       # it, so local vocabulary stays where it is declared.
       - uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # v2.2
         with:
           skip: "*.lock,package-lock.json,*.svg,*.woff2,*.min.js,target,node_modules,.git,dist,out,vendor"
-          ignore_words_list: "afterall,ser,statics,infact"
+          ignore_words_list: "afterall,ser,statics,infact,implementors"
 
   workflows:
     name: zizmor
@@ -51,9 +52,14 @@ jobs:
       - name: List shell scripts
         id: scripts
         run: echo "files=$(git ls-files '*.sh' '*.bash' | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+      # Gates at warning and above. The runners' ShellCheck version moves on
+      # its own schedule and the info level moves with it — a fleet-wide gate
+      # that fails when a runner image ships a new stylistic note is a gate
+      # that breaks mains for reasons no one changed. Info findings still show
+      # up for anyone running shellcheck locally.
       - name: ShellCheck every script
         if: steps.scripts.outputs.files != ''
-        run: shellcheck ${{ steps.scripts.outputs.files }}
+        run: shellcheck --severity=warning ${{ steps.scripts.outputs.files }}
 
   api:
     name: hawk
@@ -74,7 +80,14 @@ jobs:
             echo "no Cargo.toml; hawk does not apply"
             exit 0
           fi
-          count=$(cargo metadata --no-deps --format-version 1 \
+          # A workspace that cannot be read here is not a finding: several
+          # members resolve a sibling checkout that this job does not clone.
+          if ! meta=$(cargo metadata --no-deps --format-version 1 2>/dev/null); then
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            echo "::notice::cargo metadata could not resolve this workspace; hawk skipped"
+            exit 0
+          fi
+          count=$(printf '%s' "$meta" \
             | jq '[.packages[].targets[] | select(.kind | index("bin"))] | length')
           echo "count=${count}" >> "$GITHUB_OUTPUT"
       # Heavy — it drives the compiler over the whole workspace — so the cache
@@ -87,8 +100,14 @@ jobs:
           rustup toolchain install 1.98.0 --profile minimal
           curl --proto '=https' --tlsv1.2 -LsSf \
             https://github.com/astral-sh/hawk/releases/latest/download/cargo-hawk-installer.sh | sh
-      # Advisory today: hawk reports and exits zero. Move a repository to
-      # `-D warnings` once its findings are worked down.
+      # Advisory, and written so it stays that way. hawk pins itself to one
+      # compiler and refuses workspaces it cannot model — a duplicate lib
+      # name, a lockfile it will not write under --locked — and none of that
+      # is a finding about the code. The report lands in the log either way;
+      # a repository that wants hawk to gate can say so in its own workflow.
       - name: Public-API hygiene
         if: steps.bins.outputs.count != '0'
-        run: cargo +1.98.0 hawk check
+        run: |
+          cargo +1.98.0 hawk check \
+            || echo "::warning::hawk reported findings, or could not run here"
+
