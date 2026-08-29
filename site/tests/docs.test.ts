@@ -11,8 +11,8 @@ import { join } from "node:path";
 
 const CONTENT_DIR = join(import.meta.dir, "..", "content");
 
-function markdownFiles(dir) {
-  const out = [];
+function markdownFiles(dir: string): string[] {
+  const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) out.push(...markdownFiles(full));
@@ -29,7 +29,7 @@ describe("content frontmatter", () => {
       const text = readFileSync(file, "utf8");
       const match = /^---\n([\s\S]*?)\n---/.exec(text);
       expect(match).not.toBeNull();
-      const frontmatter = match[1];
+      const frontmatter = match?.[1] ?? "";
       expect(frontmatter).toMatch(/^title: \S/m);
       expect(frontmatter).toMatch(/^description: \S/m);
     });

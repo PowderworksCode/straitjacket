@@ -1,0 +1,10 @@
+{
+  "root": true,
+  "extends": ["./biome.base.json"],
+  "overrides": [
+    {
+      "includes": ["content/rules.json"],
+      "formatter": { "enabled": false }
+    }
+  ]
+}
