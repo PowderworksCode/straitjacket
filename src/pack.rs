@@ -19,10 +19,16 @@ use beamte::node::{Node, Span};
 use beamte::role::RoleSet;
 use wasmer::{Function, Instance, Memory, Module, Store, TypedFunction, Value};
 
-/// The pack ABI this host speaks. A pack states its own with `tb_pack_abi()`,
-/// and one that disagrees is refused rather than called: the exports it is
-/// missing would otherwise surface as unrelated errors much later.
-const REQUIRED_PACK_ABI: i32 = 2;
+/// The oldest pack ABI this host can drive. A pack states its own with
+/// `tb_pack_abi()`, and one older than this is refused rather than called:
+/// the exports it is missing would otherwise surface as unrelated errors
+/// much later.
+///
+/// A minimum rather than an equality, because a pack is a versioned contract
+/// and the version only moves forward. ABI 3 added the query exports, which
+/// this host does not bind; requiring exactly 2 refused every pack treebank
+/// publishes today while claiming the pack was the thing out of date.
+const MINIMUM_PACK_ABI: i32 = 2;
 
 /// `tb_node_flags` bit for a named node. The rest (error, missing, extra) are
 /// not needed here.
@@ -37,7 +43,6 @@ const WASI_BADF: i64 = 8;
 
 struct Exports {
     initialize: TypedFunction<(), ()>,
-    pack_abi: TypedFunction<(), i32>,
     language_name: TypedFunction<(), i32>,
     strlen: TypedFunction<i32, u32>,
     roles: TypedFunction<(), i32>,
@@ -115,17 +120,11 @@ impl Pack {
             .get_memory("memory")
             .with_context(|| format!("{origin} exports no memory"))?
             .clone();
+        check_pack_abi(&instance, &mut store, origin)?;
+
         let exports = Exports::from(&instance, &store, origin)?;
 
         start_reactor(&exports, &mut store)?;
-
-        let abi = exports.pack_abi.call(&mut store)?;
-        if abi != REQUIRED_PACK_ABI {
-            bail!(
-                "{origin} is pack ABI {abi}, and this build speaks {REQUIRED_PACK_ABI}. \
-                 Rebuild or re-fetch the pack."
-            );
-        }
 
         let mut loaded = Loaded {
             store,
@@ -169,6 +168,31 @@ impl Pack {
 ///
 /// A pack is a WASI *reactor*: it has no `main`, it initialises itself through
 /// this export, and no other export may be called before it.
+/// Refuse a pack this host cannot drive, before its exports are bound.
+///
+/// Called first, and on its own. Binding the whole ABI before checking it
+/// reports an old pack as missing some export whose name means nothing to
+/// the reader, when the useful thing to say is which version it is.
+///
+/// `tb_pack_abi` is the one export every version of the ABI has had, and it
+/// is callable before `_initialize`: it returns a constant compiled into the
+/// pack rather than anything the runtime sets up.
+fn check_pack_abi(instance: &Instance, store: &mut Store, origin: &str) -> Result<()> {
+    let pack_abi: TypedFunction<(), i32> = instance
+        .exports
+        .get_typed_function(store, "tb_pack_abi")
+        .with_context(|| format!("{origin} does not export tb_pack_abi; is it a treebank pack?"))?;
+
+    let abi = pack_abi.call(store)?;
+    if abi < MINIMUM_PACK_ABI {
+        bail!(
+            "{origin} is pack ABI {abi}, and this host needs at least \
+             {MINIMUM_PACK_ABI}. Rebuild or re-fetch the pack."
+        );
+    }
+    Ok(())
+}
+
 fn start_reactor(exports: &Exports, store: &mut Store) -> Result<()> {
     exports.initialize.call(store)?;
     Ok(())
@@ -495,7 +519,6 @@ impl Exports {
         }
         Ok(Exports {
             initialize: typed!("_initialize"),
-            pack_abi: typed!("tb_pack_abi"),
             language_name: typed!("tb_language_name"),
             strlen: typed!("tb_strlen"),
             roles: typed!("tb_roles"),
