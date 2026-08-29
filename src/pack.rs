@@ -17,7 +17,7 @@ use anyhow::{Context, Result, bail};
 use beamte::RoleTable;
 use beamte::node::{Node, Span};
 use beamte::role::RoleSet;
-use wasmer::{Function, FunctionType, Instance, Memory, Module, Store, Type, TypedFunction, Value};
+use wasmer::{Function, Instance, Memory, Module, Store, TypedFunction, Value};
 
 /// The pack ABI this host speaks. A pack states its own with `tb_pack_abi()`,
 /// and one that disagrees is refused rather than called: the exports it is
@@ -117,9 +117,7 @@ impl Pack {
             .clone();
         let exports = Exports::from(&instance, &store, origin)?;
 
-        // Reactor model: the module initialises itself rather than running a
-        // main, and nothing else may be called first.
-        exports.initialize.call(&mut store)?;
+        start_reactor(&exports, &mut store)?;
 
         let abi = exports.pack_abi.call(&mut store)?;
         if abi != REQUIRED_PACK_ABI {
@@ -165,6 +163,23 @@ impl Pack {
             .map_err(|_| anyhow::anyhow!("the grammar pack lock was poisoned"))?;
         loaded.parse(source, &self.roles)
     }
+}
+
+/// Run a pack's self-initialisation.
+///
+/// A pack is a WASI *reactor*: it has no `main`, it initialises itself through
+/// this export, and no other export may be called before it.
+fn start_reactor(exports: &Exports, store: &mut Store) -> Result<()> {
+    exports.initialize.call(store)?;
+    Ok(())
+}
+
+/// Whether `tb_node_flags` marks this node named.
+///
+/// Anonymous nodes are the punctuation a grammar needs to parse and that no
+/// rule here reads, so they are dropped on the way into the arena.
+fn is_named(flags: u32) -> bool {
+    flags & FLAG_NAMED != 0
 }
 
 /// Every WASI import a pack declares, answered with `badf`.
@@ -270,36 +285,29 @@ impl Loaded {
             let mut named = 0u32;
             let mut children = Vec::new();
 
-            for position in 0..total {
+            for position_among_all_children in 0..total {
                 let child_slot = self.exports.node_new.call(&mut self.store)?;
                 if child_slot == 0 {
                     bail!("the pack could not allocate a node");
                 }
-                let found =
-                    self.exports
-                        .node_child
-                        .call(&mut self.store, slot, position, child_slot)?;
+                let found = self.exports.node_child.call(
+                    &mut self.store,
+                    slot,
+                    position_among_all_children,
+                    child_slot,
+                )?;
                 if found == 0 {
                     self.exports.node_free.call(&mut self.store, child_slot)?;
                     continue;
                 }
                 let flags = self.exports.node_flags.call(&mut self.store, child_slot)?;
-                if flags & FLAG_NAMED == 0 {
-                    // Anonymous: punctuation the grammar needs and no rule reads.
+                if !is_named(flags) {
                     self.exports.node_free.call(&mut self.store, child_slot)?;
                     continue;
                 }
-                // Field names are indexed over ALL children, named or not, so
-                // this has to be asked before the anonymous ones are dropped.
-                let field_ptr =
-                    self.exports
-                        .node_field_name_for_child
-                        .call(&mut self.store, slot, position)?;
-                let field = if field_ptr == 0 {
-                    None
-                } else {
-                    let name = self.read_c_string_at(field_ptr)?;
-                    Some(intern(&mut arena.fields, &mut field_ids, name))
+                let field = match self.field_name_at(slot, position_among_all_children)? {
+                    Some(name) => Some(intern(&mut arena.fields, &mut field_ids, name)),
+                    None => None,
                 };
 
                 let node = self.read_node(child_slot, field, roles, &mut arena, &mut kind_ids)?;
@@ -320,6 +328,23 @@ impl Loaded {
             self.exports.node_free.call(&mut self.store, slot)?;
         }
         Ok(arena)
+    }
+
+    /// The grammar field a child fills in its parent, if any.
+    ///
+    /// `position` indexes over ALL children, named and anonymous alike,
+    /// because `tb_node_field_name_for_child` wraps tree-sitter's
+    /// `ts_node_field_name_for_child`, which does. Asking with a named-child
+    /// index returns the wrong field, or none, and does so silently.
+    fn field_name_at(&mut self, parent: i32, position: u32) -> Result<Option<String>> {
+        let ptr = self
+            .exports
+            .node_field_name_for_child
+            .call(&mut self.store, parent, position)?;
+        if ptr == 0 {
+            return Ok(None);
+        }
+        Ok(Some(self.read_c_string_at(ptr)?))
     }
 
     fn read_node(
@@ -496,7 +521,3 @@ impl Exports {
         })
     }
 }
-
-// Silence unused-import lints for types only named in signatures above.
-const _: Option<FunctionType> = None;
-const _: Option<Type> = None;

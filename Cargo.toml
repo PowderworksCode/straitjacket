@@ -1,3 +1,8 @@
+# straitjacket-allow-file:no-comments — a manifest is interface, read by anyone
+# deciding whether to trust this dependency list, and TOML has no
+# documentation-comment syntax to hoist the reasoning into. The blake3 entry in
+# particular has to explain itself here: it looks unused, and removing it breaks
+# only the aarch64 release.
 [package]
 name = "straitjacket"
 version = "0.1.3"

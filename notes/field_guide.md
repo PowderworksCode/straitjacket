@@ -34,10 +34,17 @@ would help a future agent. Keep temporary plans and task-specific notes out.
 - The asset name `straitjacket-<tag>-<target>.tar.gz` is a contract between the
   release workflow and `install.sh`. Changing it in one place breaks every
   existing installer invocation.
-- `install.sh` and `action.yml` carry `straitjacket-allow-file:no-comments`.
-  Neither `sh` nor YAML has a documentation-comment syntax to hoist reasoning
-  into, and both files are interface that people read before trusting. That is
-  the reason; do not extend the marker to implementation source.
+- `install.sh`, `action.yml` and `Cargo.toml` carry
+  `straitjacket-allow-file:no-comments`. None of `sh`, YAML or TOML has a
+  documentation-comment syntax to hoist reasoning into, and all three are
+  interface that people read before trusting. That is the reason; do not extend
+  the marker to implementation source.
+- `blake3` is a direct dependency that nothing calls. It is there to force its
+  `pure` feature across the graph: wasmer pulls blake3, whose `build.rs`
+  compiles NEON assembly with `cc` on aarch64 and so wants
+  `aarch64-linux-musl-gcc`. x86_64 uses intrinsics and builds fine, so removing
+  the entry breaks the aarch64 release and nothing else — which CI does not
+  build. Do not tidy it away.
 - CI builds the musl release target on every run. A release build that only
   breaks when a tag is pushed is discovered too late to fix quietly.
 - `install-smoke.yml` is **called** by the release workflow, not triggered by
