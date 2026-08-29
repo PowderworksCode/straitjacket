@@ -1,14 +1,6 @@
----
-title: Straitjacket
-description: A secret scanner, but for slop.
-tab-title: Straitjacket by Powderworks
----
-
 <!-- straitjacket-allow-file:emoji — the sample scan output quotes an emoji finding, so the literal is what is being demonstrated -->
 
-<p class="cover"><img src="/strait-waistcoat.jpg" alt="Engraving of a patient restrained in a strait-waistcoat" width="220"><span class="credit">An 1838 engraving of a <a href="https://en.wikipedia.org/wiki/Straitjacket">strait-waistcoat</a>. <a href="https://wellcomecollection.org/works/dh2xhuph">Wellcome Collection</a>, <a href="https://creativecommons.org/publicdomain/mark/1.0/">Public Domain Mark</a>.</span></p>
-
-**A secret scanner, but for slop.**
+<p class="cover"><img src="/cover.jpg" alt="Engraving of a patient restrained in a strait-waistcoat" width="220"><span class="credit">An 1838 engraving of a <a href="https://en.wikipedia.org/wiki/Straitjacket">strait-waistcoat</a>. <a href="https://wellcomecollection.org/works/dh2xhuph">Wellcome Collection</a>, <a href="https://creativecommons.org/publicdomain/mark/1.0/">Public Domain Mark</a>.</span></p>
 
 [Get started](/getting-started/) · [Read the docs](/guides/) · [Browse the rules](/reference/rules/) · [GitHub](https://github.com/PowderworksCode/straitjacket)
 

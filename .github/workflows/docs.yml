@@ -35,3 +35,13 @@ jobs:
       # rule that does not exist, and no page quotes a stale default.
       - run: bun test
         working-directory: site
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet pillow
+      # The card a link shows is committed, because nothing should have to draw
+      # an image to serve a page. Committed means it can go stale, so this
+      # compares what it was drawn from against what the config says now.
+      - name: The social card still matches the config
+        run: bun run social:check
+        working-directory: site
