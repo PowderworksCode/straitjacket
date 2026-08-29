@@ -43,7 +43,7 @@ ways nobody can audit.
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
-shellcheck -s sh install.sh
+shellcheck -s sh scripts/install.sh
 ```
 
 Straitjacket scans itself under its own rules, so run it before opening a PR:

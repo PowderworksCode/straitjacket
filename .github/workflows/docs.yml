@@ -40,7 +40,10 @@ jobs:
           fi
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: latest
+          # Pinned: `latest` is a different Bun on different days, and a docs
+          # gate that fails because a runner picked up a new release is a gate
+          # nobody can act on. reproducible-toolchain asks for this.
+          bun-version: "1.4.0"
       - run: bun install --frozen-lockfile
         working-directory: site
       # Checks the other direction: every rule is documented, no page claims a

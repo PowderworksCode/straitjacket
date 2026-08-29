@@ -29,7 +29,7 @@ jobs:
       - run: cargo test --workspace
       # The installer is the first thing a new user runs, and it runs under
       # whatever /bin/sh they have.
-      - run: shellcheck -s sh install.sh
+      - run: shellcheck -s sh scripts/install.sh
       # A release build must keep working between releases, or the breakage is
       # only discovered when a tag is pushed and it is too late to fix quietly.
       - run: rustup target add x86_64-unknown-linux-musl

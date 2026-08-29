@@ -44,7 +44,7 @@ jobs:
           if [ -n "${VERSION}" ] && [ "${VERSION}" != "latest" ]; then
             export STRAITJACKET_VERSION="${VERSION}"
           fi
-          sh install.sh
+          sh scripts/install.sh
       - name: The installed binary runs
         run: |
           export PATH="$HOME/.local/bin:$PATH"
