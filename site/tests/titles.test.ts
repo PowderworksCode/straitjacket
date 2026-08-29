@@ -3,11 +3,12 @@
 // while the suite stayed green. So this builds the site and reads the output.
 //
 // It runs the real build command out of package.json, pointed at a temporary
-// directory. Twice this suite restated that command's flags instead, and twice
-// they drifted, leaving it green against a site configured unlike the published
-// one. A tab and its heading come from one field by two paths, so asserting
-// they agree catches either path dropping it; a page declaring tab-title must
-// get exactly what it asked for instead.
+// directory, and reads the tab the registry names for the landing. Twice this
+// suite restated the build's flags instead, and twice they drifted, leaving it
+// green against a site configured unlike the published one. A tab and its
+// heading come from one field by two paths, so asserting they agree catches
+// either path dropping it; a page given a tab-title, in frontmatter or in
+// powderworks.toml, must get exactly the one it asked for instead.
 import { afterAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -52,8 +53,15 @@ function pages(dir, trail = []) {
   return found;
 }
 
+const registry: any = await import(
+  join(SITE, "node_modules", "powderworks-docs", "powderworks.toml")
+);
+const named = /--site (\S+)/.exec(script)?.[1];
+const shared = (registry.default ?? registry).site?.[named ?? ""] ?? {};
+
 const built = run.exitCode === 0 ? pages(out) : [];
 const overrides = tabTitlesByEmittedUrl(join(SITE, "content"));
+if (shared["tab-title"]) overrides.set("/", shared["tab-title"]);
 
 describe("rendered titles", () => {
   test("the real build command succeeds", () => {
