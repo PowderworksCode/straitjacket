@@ -5,7 +5,7 @@
     "": {
       "name": "straitjacket-site",
       "dependencies": {
-        "powderworks-docs": "github:PowderworksCode/docs",
+        "@powderworks/docs": "^0.2.0",
       },
       "devDependencies": {
         "wrangler": "^4.123.0",
@@ -149,6 +149,8 @@
 
     "@poppinss/exception": ["@poppinss/exception@1.2.3", "", {}, "sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw=="],
 
+    "@powderworks/docs": ["@powderworks/docs@0.2.0", "", { "dependencies": { "highlight.js": "^11.12.0", "marked": "^16.4.1", "smol-toml": "^1.8.0" }, "bin": { "powderworks-docs": "src/cli.mjs" } }, "sha512-ck3qxDxLs+hX6csVi91nqQgx8ci2xQTtLPeZ+DdtVK5aDLoyithyAcUQgwbV2UmjmghNspRdtnjKd+h2RocnCg=="],
+
     "@sindresorhus/is": ["@sindresorhus/is@7.2.0", "", {}, "sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw=="],
 
     "@speed-highlight/core": ["@speed-highlight/core@1.2.24", "", {}, "sha512-qeW2e1l78afw8VhRPfPQ1Gjj+KU5XFQ/OFV5ti6eTa9bruO7mJyZtA4vw0ofqmA3tKCkROE9xLk3VZoeRc98nw=="],
@@ -176,8 +178,6 @@
     "path-to-regexp": ["path-to-regexp@6.3.0", "", {}, "sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ=="],
 
     "pathe": ["pathe@2.0.3", "", {}, "sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w=="],
-
-    "powderworks-docs": ["powderworks-docs@github:PowderworksCode/docs#7733aac", { "dependencies": { "highlight.js": "^11.12.0", "marked": "^16.4.1", "smol-toml": "^1.8.0" }, "bin": { "powderworks-docs": "./src/cli.mjs" } }, "PowderworksCode-docs-7733aac", "sha512-wTFSMqG2yLwRozwwUDDVTYOA71gufimNqS3i+7X9RqCx02u2r6kmD6IhHDK26LSG1HZ9KjOFcRwz2fcN37qh8Q=="],
 
     "semver": ["semver@7.8.5", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA=="],
 

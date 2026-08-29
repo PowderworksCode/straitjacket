@@ -75,7 +75,7 @@ function pages(dir, trail = []) {
 }
 
 const registry: any = await import(
-  join(SITE, "node_modules", "powderworks-docs", "powderworks.toml")
+  join(SITE, "node_modules", "@powderworks", "docs", "powderworks.toml")
 );
 const named = /--site (\S+)/.exec(script)?.[1];
 const shared = (registry.default ?? registry).site?.[named ?? ""] ?? {};
