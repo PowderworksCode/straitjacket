@@ -8,11 +8,44 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Periodic coverage: these tools grow rules between releases, so a repository
+  # nobody has touched can start failing for a reason worth knowing about.
+  schedule:
+    - cron: "23 5 * * 1"
 
 permissions:
   contents: read
 
 jobs:
+  # What changed decides what the heavy job runs on. On a push or a schedule
+  # there is no base to compare against, so everything counts as changed.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -z "$BASE" ]; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "not a pull request; the heavy job runs"
+            exit 0
+          fi
+          if git diff --name-only "$BASE"...HEAD \
+              | grep -qE '\.rs$|(^|/)Cargo\.(toml|lock)$'; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rust=false" >> "$GITHUB_OUTPUT"
+            echo "no Rust changed; hawk skipped"
+          fi
+
   prose:
     name: codespell
     runs-on: ubuntu-latest
@@ -65,6 +98,11 @@ jobs:
     name: hawk
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The one heavy job here, so it is the one that has to earn its run: it
+    # drives the compiler over the whole workspace, and a pull request that
+    # touches no Rust cannot change what it would say.
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Whether hawk applies is answered on the runner, after checkout: a
