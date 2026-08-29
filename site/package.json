@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "rm -rf out && powderworks-docs build content --out out --site-url https://straitjacket.dev --name Straitjacket --description \"A secret scanner, but for slop.\" --github PowderworksCode/straitjacket --logo /strait-face.png --copyright \"Zack Maril\" --wordmark Straitjacket --wordmark-font '\"Manufacturing Consent\"' --wordmark-woff2 /manufacturing-consent-latin.woff2 --wordmark \"The Powderworks Agentic Code Consortium\" --wordmark-font '\"IM Fell English SC\"' --wordmark-woff2 /im-fell-english-sc-latin.woff2 --wordmark Powderworks --wordmark-font '\"IM Fell English SC\"' --wordmark-woff2 /im-fell-english-sc-latin.woff2 --social /social.png --static public",
-    "social": "python3 node_modules/powderworks-docs/tools/social-card.py --name Straitjacket --tagline \"A secret scanner, but for slop.\" --url straitjacket.dev --logo public/strait-waistcoat.jpg --font https://raw.githubusercontent.com/google/fonts/main/ofl/manufacturingconsent/ManufacturingConsent-Regular.ttf --out public/social.png",
+    "build": "rm -rf out && powderworks-docs build content --out out --site straitjacket --static public",
+    "social": "python3 node_modules/powderworks-docs/tools/social-card.py --site straitjacket",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "test": "bun test"

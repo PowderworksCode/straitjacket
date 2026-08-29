@@ -73,13 +73,9 @@ describe("rendered titles", () => {
     expect(inside).toEqual([]);
   });
 
-  test("the names given to the build are set where they appear", () => {
-    const named = [...script.matchAll(/--wordmark (?:"([^"]+)"|(\S+))/g)].map((m) => m[1] ?? m[2]);
-    expect(named.length).toBeGreaterThan(0);
+  test("the site's own name is set in its own face", () => {
     const html = built.map(({ file }) => readFileSync(file, "utf8")).join("");
-    const set = named.filter((name) =>
-      html.includes(`>${name}<`) || new RegExp(`class="wordmark[^"]*">${name.split(/\s+/)[0]}`).test(html));
-    expect(set.length).toBeGreaterThan(0);
+    expect(new RegExp(`class="wordmark[^"]*">${SITE_NAME}<`).test(html)).toBe(true);
   });
 
   for (const { url, file } of built.sort((a, b) => a.url.localeCompare(b.url))) {
