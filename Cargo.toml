@@ -46,6 +46,13 @@ unic-emoji-char = "0.9"
 
 [dev-dependencies]
 tempfile = "3"
+# The tests need a real pack, and this is where packs come from. Only the
+# acquisition half is taken: `fetch-bytes` is treebank's manifest, sha256 check
+# and content-addressed cache with no wasm engine attached, so it does not
+# stand up a second engine beside the one above. A dev-dependency carrying no
+# version is dropped from the published manifest, so this git reference reaches
+# nobody installing straitjacket.
+treebank = { git = "https://github.com/PowderworksCode/treebank", default-features = false, features = ["fetch-bytes"] }
 
 [lints.rust]
 unused_must_use = "deny"

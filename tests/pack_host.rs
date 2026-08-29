@@ -1,22 +1,38 @@
 //! The wasm pack host, against a real treebank pack.
 //!
-//! The pack is not committed, so these run only when `TREEBANK_PACK` points at
-//! one. That is deliberate: a test that silently passes because it found no
-//! grammar would be worse than no test.
+//! These used to run only when `TREEBANK_PACK` pointed at a pack, and nothing
+//! ever set it -- so all six passed in CI having loaded nothing and parsed
+//! nothing. That is how the host sat requiring pack ABI 2 while treebank
+//! shipped 3, refusing every pack in existence with no test to say so. A test
+//! that silently passes because it found no grammar is worse than no test,
+//! and this file was the example.
+//!
+//! So the pack is fetched rather than waited for. `treebank::fetch` is the
+//! acquisition half of the crate that builds packs -- manifest, sha256, a
+//! content-addressed cache -- taken without its engine, since the engine is
+//! the thing under test here.
+//!
+//! Deliberately the *current* python pack rather than a pinned one. It costs
+//! reproducibility and couples CI to treebank shipping something loadable,
+//! which is the coupling that actually exists: if treebank publishes a pack
+//! this host cannot drive, straitjacket is broken in the field and this is
+//! where that should surface. A digest is the right pin for a build, not for
+//! the test that watches for drift.
 
 use beamte::node::{Node, Unit};
 use beamte::role::Role;
 use beamte::{TestModel, inspect};
 use straitjacket::pack::Pack;
 
-fn pack() -> Option<Pack> {
-    let path = std::env::var("TREEBANK_PACK").ok()?;
-    Some(Pack::load(std::path::Path::new(&path)).expect("the pack loads"))
+fn pack() -> Pack {
+    let bytes = treebank::fetch::fetch_bytes("python")
+        .expect("fetching the python pack; these tests exist to drive a real one");
+    Pack::from_bytes(&bytes, "the treebank python pack").expect("the pack loads")
 }
 
 #[test]
 fn a_pack_reports_its_language_and_knows_every_term_it_declares() {
-    let Some(pack) = pack() else { return };
+    let pack = pack();
 
     assert_eq!(pack.language(), "python");
     assert_eq!(
@@ -28,7 +44,7 @@ fn a_pack_reports_its_language_and_knows_every_term_it_declares() {
 
 #[test]
 fn table_tier_roles_come_off_the_pack() {
-    let Some(pack) = pack() else { return };
+    let pack = pack();
     let tree = pack.parse("while x:\n    pass\n").expect("parses");
 
     let mut found = false;
@@ -48,7 +64,7 @@ fn table_tier_roles_come_off_the_pack() {
 
 #[test]
 fn facet_roles_come_off_the_pack_too() {
-    let Some(pack) = pack() else { return };
+    let pack = pack();
     let tree = pack.parse("def f():\n    pass\n").expect("parses");
 
     let function = tree.root().child(0).expect("a first child");
@@ -58,7 +74,7 @@ fn facet_roles_come_off_the_pack_too() {
 
 #[test]
 fn fields_survive_the_crossing() {
-    let Some(pack) = pack() else { return };
+    let pack = pack();
     let tree = pack.parse("def some_name():\n    pass\n").expect("parses");
 
     let function = tree.root().child(0).expect("a first child");
@@ -68,7 +84,7 @@ fn fields_survive_the_crossing() {
 
 #[test]
 fn beamte_finds_a_loop_in_a_test_through_the_pack() {
-    let Some(pack) = pack() else { return };
+    let pack = pack();
     let source =
         "def test_registers_every_user():\n    for user in users:\n        forum.register(user)\n";
     let tree = pack.parse(source).expect("parses");
@@ -83,7 +99,7 @@ fn beamte_finds_a_loop_in_a_test_through_the_pack() {
 
 #[test]
 fn a_clean_test_yields_nothing() {
-    let Some(pack) = pack() else { return };
+    let pack = pack();
     let source = "def test_registers_alice():\n    forum.register(alice)\n    assert forum.has_registered(alice)\n";
     let tree = pack.parse(source).expect("parses");
 
