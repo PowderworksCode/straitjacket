@@ -1,0 +1,79 @@
+name: fleet-lint
+
+# Fleet-managed by conf (.ordnung/managed/github/lint.yml): the static-analysis
+# floor every member runs — prose, workflow, shell, and public-API hygiene.
+# Edit it in conf and let ordnung distribute it; a local edit here is drift the
+# next fleet sync will report.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  prose:
+    name: codespell
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # v2.2
+        with:
+          skip: "*.lock,package-lock.json,*.svg,*.woff2,*.min.js,target,node_modules,.git,dist,out,vendor"
+
+  workflows:
+    name: zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # High severity gates; everything else is visible in the job log. Tighten
+      # per repository once the backlog is clear.
+      - uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          min-severity: high
+          advanced-security: false
+
+  shell:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: List shell scripts
+        id: scripts
+        run: echo "files=$(git ls-files '*.sh' '*.bash' | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+      - name: ShellCheck every script
+        if: steps.scripts.outputs.files != ''
+        run: shellcheck ${{ steps.scripts.outputs.files }}
+
+  api:
+    name: hawk
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Heavy — it drives the compiler over the whole workspace — so it is
+    # conditioned rather than unconditional, and only Rust repositories with
+    # binary targets are hawk's subject at all.
+    if: ${{ hashFiles('Cargo.toml') != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Binary targets decide whether hawk applies
+        id: bins
+        run: |
+          count=$(cargo metadata --no-deps --format-version 1 \
+            | jq '[.packages[].targets[] | select(.kind | index("bin"))] | length')
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+      - name: Install hawk
+        if: steps.bins.outputs.count != '0'
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            https://github.com/astral-sh/hawk/releases/latest/download/cargo-hawk-installer.sh | sh
+      # Advisory today: hawk reports and exits zero. Move a repository to
+      # `-D warnings` once its findings are worked down.
+      - name: Public-API hygiene
+        if: steps.bins.outputs.count != '0'
+        run: cargo +1.98.0 hawk check

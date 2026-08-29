@@ -110,7 +110,7 @@ prebuilt archives for Linux (`x86_64`, `aarch64`, static musl) and macOS
 
 ### Removed
 
-- The eight rules backed by unpublished `entl`/`infact` packs — `exact-clone`,
+- The eight rules backed by unpublished `entl`/`in fact` packs — `exact-clone`,
   `near-clone`, `library-opportunity`, `effect-barrier`, `effect-capability`,
   `unknown-barrier`, `error-discard` and `analysis-incomplete`. Cutting them is
   what let Straitjacket build on its own. A `straitjacket.toml` still carrying a

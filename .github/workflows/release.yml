@@ -77,9 +77,10 @@ jobs:
       # .cargo/config.toml links them with rust-lld against a self-contained
       # musl. No cross toolchain, container, or apt package is involved.
       - run: rustup target add ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          key: ${{ matrix.target }}
+      # No build cache here, deliberately: a cache is writable from other
+      # workflows, and these binaries are the release. Cold builds are the
+      # price of artifacts nothing else could have written to (zizmor's
+      # cache-poisoning audit).
       - run: cargo build --release --locked --target ${{ matrix.target }}
       - name: Package
         run: |

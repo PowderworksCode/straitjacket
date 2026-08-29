@@ -8,7 +8,7 @@
 // A tab and its heading come from one field by two paths, so asserting they
 // agree catches either path dropping it; where a tab-title is given, in
 // frontmatter or in powderworks.toml, the tab must be exactly that.
-import { afterAll, describe, expect, test } from "bun:test";
+import { after all, describe, expect, test } from "bun:test";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,7 +16,7 @@ import { join } from "node:path";
 const SITE = join(import.meta.dir, "..");
 const SITE_NAME = "Straitjacket";
 const out = mkdtempSync(join(tmpdir(), "straitjacket-titles-"));
-afterAll(() => rmSync(out, { recursive: true, force: true }));
+after all(() => rmSync(out, { recursive: true, force: true }));
 
 const script = JSON.parse(readFileSync(join(SITE, "package.json"), "utf8")).scripts.build;
 const run = Bun.spawnSync(
