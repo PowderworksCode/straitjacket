@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "cp ../install.sh public/install && rm -rf out && powderworks-docs build content --out out --site straitjacket --static public --var version=$(grep -m1 '^version = ' ../Cargo.toml | cut -d'\"' -f2)",
+    "build": "cp ../scripts/install.sh public/install && rm -rf out && powderworks-docs build content --out out --site straitjacket --static public --var version=$(grep -m1 '^version = ' ../Cargo.toml | cut -d'\"' -f2)",
     "social": "python3 node_modules/@powderworks/docs/tools/social-card.py --site straitjacket",
     "social:check": "python3 node_modules/@powderworks/docs/tools/social-card.py --site straitjacket --check",
     "deploy": "wrangler deploy",

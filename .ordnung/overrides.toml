@@ -1,5 +1,0 @@
-# install.sh is the file people pipe to a shell; its address is published in
-# the README and served at the project site. It lives at the repository root
-# because that is where it is fetched from, not because it escaped scripts/.
-[scripts]
-allow = ["install.sh"]
