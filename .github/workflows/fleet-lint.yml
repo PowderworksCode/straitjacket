@@ -19,9 +19,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # ignore_words_list carries the identifiers codespell reads as prose and
+      # would have us break: afterAll is the bun and jest hook, ser the serde
+      # module, statics the Rust items, and infact a sibling project. A
+      # repository's own .codespellrc adds to this list rather than replacing
+      # it, so local vocabulary stays where it is declared.
       - uses: codespell-project/actions-codespell@8f01853be192eb0f849a5c7d721450e7a467c579 # v2.2
         with:
           skip: "*.lock,package-lock.json,*.svg,*.woff2,*.min.js,target,node_modules,.git,dist,out,vendor"
+          ignore_words_list: "afterall,ser,statics,infact"
 
   workflows:
     name: zizmor
