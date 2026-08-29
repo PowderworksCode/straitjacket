@@ -45,16 +45,31 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-  # Bun is its own Dependabot ecosystem; an npm entry is also accepted for
-  # compatibility, but the lockfiles in this fleet are bun.lock. `/*` finds a
-  # site/ wherever a member keeps one.
+  # Bun is its own Dependabot ecosystem. `/**` is the whole tree rather than
+  # `/*`, which reached exactly one level down: it missed members whose bun
+  # project is the repository root (docs, immersion) and any nested one.
   - package-ecosystem: bun
     directories:
-      - /*
+      - /**
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
       site-minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # npm, for the directories that carry a package-lock.json rather than a
+  # bun.lock — treebank's language oracles are the ones in this fleet today.
+  # Dependabot decides per directory from the lockfile it finds, so this and
+  # the bun entry above do not fight over the same package.json.
+  - package-ecosystem: npm
+    directories:
+      - /**
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
