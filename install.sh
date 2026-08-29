@@ -1,7 +1,7 @@
 #!/bin/sh
 # Install the straitjacket binary.
 #
-#   curl -LsSf https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
+#   curl -fsSL https://straitjacket.dev/install | sh
 #
 # Environment:
 #   STRAITJACKET_VERSION     version to install, such as v0.1.0. Default: latest
@@ -55,13 +55,22 @@ detect_target() {
 # message in `main` -- but a dropped connection usually is.
 RETRY="--retry 3 --retry-delay 2"
 
+# Silent when the output is going into a build log, a progress bar when a
+# person is watching. A binary is a few megabytes and a slow connection with
+# no output at all reads as a hang.
+if [ -t 2 ]; then
+    PROGRESS="--progress-bar"
+else
+    PROGRESS="--silent"
+fi
+
 # Fetch a URL to stdout, sending credentials only when they were provided.
 fetch() {
     # shellcheck disable=SC2086
     if [ -n "${GITHUB_TOKEN:-}" ]; then
-        curl -sSfL $RETRY -H "Authorization: Bearer ${GITHUB_TOKEN}" "$1"
+        curl -fL --show-error $PROGRESS $RETRY -H "Authorization: Bearer ${GITHUB_TOKEN}" "$1"
     else
-        curl -sSfL $RETRY "$1"
+        curl -fL --show-error $PROGRESS $RETRY "$1"
     fi
 }
 
@@ -148,11 +157,11 @@ download_asset() {
         asset_api=$(fetch "${API}/releases/tags/${version}" | asset_url "$asset_name")
         [ -n "$asset_api" ] || die "release ${version} has no asset named ${asset_name}"
         # shellcheck disable=SC2086
-        curl -sSfL $RETRY -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        curl -fL --show-error $PROGRESS $RETRY -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "Accept: application/octet-stream" "$asset_api" >"$asset_output"
     else
         # shellcheck disable=SC2086
-        curl -sSfL $RETRY "${DOWNLOAD}/${version}/${asset_name}" >"$asset_output"
+        curl -fL --show-error $PROGRESS $RETRY "${DOWNLOAD}/${version}/${asset_name}" >"$asset_output"
     fi
 }
 
@@ -173,11 +182,21 @@ main() {
         [ -n "$version" ] || die "no published release found. Set STRAITJACKET_VERSION to install a specific tag"
     fi
 
+    # Releases are tagged vX.Y.Z. Accepting X.Y.Z as well means the obvious
+    # value for STRAITJACKET_VERSION does the obvious thing, rather than asking
+    # for an asset that was never published under that name.
+    case "$version" in
+        v*) ;;
+        *) version="v${version}" ;;
+    esac
+
     name="straitjacket-${version}-${target}.tar.gz"
     install_dir=${STRAITJACKET_INSTALL_DIR:-"${HOME}/.local/bin"}
 
     work=$(mktemp -d)
-    trap 'rm -rf "$work"' EXIT INT TERM
+    # The half-installed binary goes too. Leaving straitjacket.new behind means
+    # the next run finds a file it did not write and cannot reason about.
+    trap 'rm -rf "$work"; rm -f "${install_dir}/straitjacket.new"' EXIT INT TERM
 
     say "downloading ${name}"
     download_asset "$name" "${work}/${name}" ||
@@ -196,7 +215,15 @@ main() {
     chmod 755 "${install_dir}/straitjacket.new"
     mv "${install_dir}/straitjacket.new" "${install_dir}/straitjacket"
 
-    say "installed ${version} to ${install_dir}/straitjacket"
+    # Run it once before claiming it is installed. A binary for the wrong
+    # architecture downloads and unpacks perfectly and fails at the first use,
+    # which is a long way from here if that use is in someone's CI.
+    installed=$("${install_dir}/straitjacket" --version 2>/dev/null) || die \
+"installed ${install_dir}/straitjacket, but it would not run.
+  The archive was built for ${target}, which is what this machine reports.
+  If that is wrong, install with \`cargo install straitjacket\` instead."
+
+    say "installed ${installed} to ${install_dir}/straitjacket"
     case ":${PATH}:" in
         *":${install_dir}:"*) ;;
         *) say "${install_dir} is not on PATH. Add: export PATH=\"${install_dir}:\$PATH\"" ;;

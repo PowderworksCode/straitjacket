@@ -13,7 +13,7 @@ finding — either by fixing it or by telling Straitjacket it's fine.
 Grab the prebuilt binary (Linux x86_64, macOS arm64/x86_64):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
+curl -fsSL https://straitjacket.dev/install | sh
 ```
 
 It verifies the download against the release checksums and installs to
@@ -36,8 +36,8 @@ straitjacket
 ```
 
 With no arguments, Straitjacket scans the current directory, honoring your
-`.gitignore`. Every rule is on by default — it runs at its max and you ratchet
-down later.
+`.gitignore`. Nine of the ten rules are on by default — it runs near its max
+and you ratchet down later. The tenth, `no-comments`, is a mode you opt into.
 
 If everything is clean you'll see:
 

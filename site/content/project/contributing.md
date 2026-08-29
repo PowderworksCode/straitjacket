@@ -4,7 +4,7 @@ description: Report a pattern Straitjacket should catch, or a false positive it 
 order: 2
 ---
 
-LLMs invent new tells constantly, and everyone's "Yuck!" is a little different. If
+LLMs invent new tells constantly, and everyone draws the line somewhere else. If
 you've spotted a pattern Straitjacket should catch — or a false positive it
 shouldn't! — [**file an issue**](https://github.com/PowderworksCode/straitjacket/issues).
 Concrete examples help most. Three things especially wanted:

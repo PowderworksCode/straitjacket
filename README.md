@@ -17,7 +17,7 @@ Full documentation lives at **[straitjacket.dev](https://straitjacket.dev)**.
 
 ```sh
 # quick start (Linux x86_64/aarch64, macOS arm64/x86_64):
-curl -LsSf https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
+curl -fsSL https://straitjacket.dev/install | sh
 straitjacket
 ```
 
@@ -44,7 +44,7 @@ could use it and tell me what other annoying things LLMs tend to do.
 
 Straitjacket has become an exercise in me encoding as much of my personal tastes
 as I can into deterministic checkers I can run across LLM output, hopefully
-saving me the trouble of having to go "Yuck!" myself.
+saving me the trouble of catching each one myself.
 
 ## Installing
 

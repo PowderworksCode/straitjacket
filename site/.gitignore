@@ -2,3 +2,5 @@ node_modules/
 out/
 .wrangler/
 .DS_Store
+# Copied from the repo root at build time so the site can serve it.
+public/install
