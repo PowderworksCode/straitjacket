@@ -22,16 +22,16 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
-      - uses: PowderworksCode/straitjacket@v0.1.1
+      - uses: PowderworksCode/straitjacket@v{{version}}
         with:
-          version: "v0.1.1"   # pin the scanner, not just the Action wrapper
+          version: "v{{version}}"   # pin the scanner, not just the Action wrapper
 ```
 
 That's the whole thing. No toolchain to set up, no Node — the Action fetches a
 single static binary and runs it.
 
 > **Pin the full version — both halves.**
-> The `@v0.1.1` on the `uses:` line pins the Action *wrapper*; the `version:` input
+> The `@v{{version}}` on the `uses:` line pins the Action *wrapper*; the `version:` input
 > pins the *scanner binary* it downloads. Leave `version` unset and it defaults to
 > `latest`, so a new Straitjacket release applies its new rules to your repo the
 > moment it ships — failing an unrelated PR on a rule you never opted into. Pin
@@ -43,7 +43,7 @@ single static binary and runs it.
 Pass typed fields rather than a raw argument string. Each maps to a CLI flag:
 
 ```yaml
-      - uses: PowderworksCode/straitjacket@v0.1.1
+      - uses: PowderworksCode/straitjacket@v{{version}}
         with:
           paths: "src tests"       # default "."
           skip: "motion"
@@ -55,7 +55,7 @@ Pass typed fields rather than a raw argument string. Each maps to a CLI flag:
           include-json: "false"
           no-ignore: "false"
           fail-on-findings: "true"
-          version: "v0.1.1"        # pin the scanner
+          version: "v{{version}}"        # pin the scanner
 ```
 
 `paths`, `only`, and `skip` accept either a single line or a YAML block list, so
@@ -91,7 +91,7 @@ To surface findings without failing the build — which is what you want while
 adopting it — turn off the gate:
 
 ```yaml
-      - uses: PowderworksCode/straitjacket@v0.1.1
+      - uses: PowderworksCode/straitjacket@v{{version}}
         with:
           fail-on-findings: "false"
 ```
@@ -101,7 +101,7 @@ failure), so a later step can still branch on the result:
 
 ```yaml
       - id: scan
-        uses: PowderworksCode/straitjacket@v0.1.1
+        uses: PowderworksCode/straitjacket@v{{version}}
         with:
           fail-on-findings: "false"
       - if: steps.scan.outputs.exit-code == '1'
@@ -121,7 +121,7 @@ permissions:
 
 steps:
   - uses: actions/checkout@v5
-  - uses: PowderworksCode/straitjacket@v0.1.1
+  - uses: PowderworksCode/straitjacket@v{{version}}
     with:
       sarif-file: straitjacket.sarif
       fail-on-findings: "false"

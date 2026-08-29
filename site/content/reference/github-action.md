@@ -16,15 +16,15 @@ permissions:
   contents: read
 steps:
   - uses: actions/checkout@v5
-  - uses: PowderworksCode/straitjacket@v0.1.1
+  - uses: PowderworksCode/straitjacket@v{{version}}
     with:
-      version: "v0.1.1"        # pin the scanner too — see the note below
+      version: "v{{version}}"        # pin the scanner too — see the note below
       paths: "src tests"
       skip: "motion"
 ```
 
-Pin the **full version** on both the `uses:` line (`@v0.1.1`, the Action wrapper)
-and the `version:` input (`v0.1.1`, the scanner binary). Left unset, `version`
+Pin the **full version** on both the `uses:` line (`@v{{version}}`, the Action wrapper)
+and the `version:` input (`v{{version}}`, the scanner binary). Left unset, `version`
 defaults to `latest`, so a new release applies its new rules the moment it ships —
 failing an unrelated PR on a rule you never opted into. Bump both, deliberately.
 
@@ -37,7 +37,7 @@ back to Straitjacket's own defaults, including a committed
 
 | input | default | meaning |
 |-------|---------|---------|
-| `version` | `latest` | Release tag to install, such as `v0.1.1`. **Pin a tag**; `latest` floats and applies new rules the moment they ship. |
+| `version` | `latest` | Release tag to install, such as `v{{version}}`. **Pin a tag**; `latest` floats and applies new rules the moment they ship. |
 | `paths` | `.` | Files or directories to scan. |
 | `only` | none | Run only these rules. |
 | `skip` | none | Disable these rules. |
@@ -95,7 +95,7 @@ permissions:
 
 steps:
   - uses: actions/checkout@v5
-  - uses: PowderworksCode/straitjacket@v0.1.1
+  - uses: PowderworksCode/straitjacket@v{{version}}
     with:
       sarif-file: straitjacket.sarif
       fail-on-findings: "false"
