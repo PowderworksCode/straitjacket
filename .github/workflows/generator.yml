@@ -1,0 +1,100 @@
+name: generator
+
+# The site is built by powderworks-docs, which lives in another repository and
+# is pinned in site/bun.lock by commit. Nothing moves that pin on its own:
+# Dependabot updates a git dependency only when a newer semver tag appears, and
+# this one tracks a branch, so a generator improvement sits unpublished until
+# somebody remembers to run one command.
+#
+# This is that command, on a schedule, with the checks a person would run after
+# it. A pull request opened with the workflow's own token does not start the
+# other workflows, so the build and the suite run here instead, and the pull
+# request only appears once they have passed against the new generator.
+on:
+  schedule:
+    # Monday morning, off the hour, because a queue at :00 is somebody else's.
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: generator-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    name: move the pin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: Resolve the generator again
+        working-directory: site
+        run: bun update powderworks-docs
+
+      - name: Has it moved?
+        id: pin
+        run: |
+          if git diff --quiet -- site/bun.lock; then
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+            echo "The pin is already current."
+            exit 0
+          fi
+          echo "moved=true" >> "$GITHUB_OUTPUT"
+          sha() { grep -o 'PowderworksCode-docs-[0-9a-f]*' | head -1 | cut -d- -f3; }
+          {
+            echo "was=$(git show HEAD:site/bun.lock | sha)"
+            echo "now=$(sha < site/bun.lock)"
+          } >> "$GITHUB_OUTPUT"
+
+      # The two checks docs.yml runs against a pull request, run here because
+      # this pull request will not run them for itself.
+      - name: The site still builds
+        if: steps.pin.outputs.moved == 'true'
+        working-directory: site
+        run: bun run build
+
+      - name: The documentation still agrees with the binary
+        if: steps.pin.outputs.moved == 'true'
+        working-directory: site
+        run: bun test
+
+      - name: Open the pull request
+        if: steps.pin.outputs.moved == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WAS: ${{ steps.pin.outputs.was }}
+          NOW: ${{ steps.pin.outputs.now }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          branch=generator-pin
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/bun.lock
+          git commit -m "Move the powderworks-docs pin from ${WAS} to ${NOW}"
+          # The branch belongs to this workflow and to nothing else, so a run
+          # that supersedes an unmerged one replaces it rather than stacking.
+          git push --force origin "HEAD:refs/heads/${branch}"
+          if [ "$(gh pr list --head "$branch" --state open --json number --jq 'length')" = "0" ]; then
+            gh pr create --base "$BASE" --head "$branch" \
+              --title "Move the powderworks-docs pin from ${WAS} to ${NOW}" \
+              --body "$(printf '%s\n' \
+                "The site is built by [powderworks-docs](https://github.com/PowderworksCode/docs), pinned in \`site/bun.lock\` by commit. This moves that pin to the head of its default branch: \`${WAS}\` → \`${NOW}\`." \
+                "" \
+                "[What changed in the generator](https://github.com/PowderworksCode/docs/compare/${WAS}...${NOW})" \
+                "" \
+                "\`bun run build\` and \`bun test\` passed against the new generator in the run that opened this. They will not run again here: a pull request opened with the workflow's own token does not start other workflows, so read that run rather than this checks list." \
+                "" \
+                "---" \
+                "_Opened by the \`generator\` workflow._")"
+          else
+            echo "The open pull request now carries the newer pin."
+          fi
