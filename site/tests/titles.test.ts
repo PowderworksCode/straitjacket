@@ -43,6 +43,17 @@ function tabTitlesByEmittedUrl(dir, trail = []) {
   return found;
 }
 
+function markdownFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).reduce(
+    (count, entry) =>
+      count +
+      (entry.isDirectory()
+        ? markdownFiles(join(dir, entry.name))
+        : Number(entry.name.endsWith(".md"))),
+    0,
+  );
+}
+
 function pages(dir, trail = []) {
   const found = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -68,8 +79,8 @@ describe("rendered titles", () => {
     expect(run.exitCode).toBe(0);
   });
 
-  test("the build emitted a page for every section and leaf", () => {
-    expect(built.length).toBeGreaterThan(15);
+  test("the build emitted a page for every markdown file", () => {
+    expect(built.length).toBe(markdownFiles(join(SITE, "content")));
   });
 
   test("no name is set in its own face inside code", () => {
