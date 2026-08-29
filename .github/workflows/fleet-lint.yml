@@ -53,19 +53,28 @@ jobs:
     name: hawk
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Heavy — it drives the compiler over the whole workspace — so it is
-    # conditioned rather than unconditional, and only Rust repositories with
-    # binary targets are hawk's subject at all.
-    if: ${{ hashFiles('Cargo.toml') != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      # Whether hawk applies is answered on the runner, after checkout: a
+      # non-Rust repository has no manifest, and hawk's subject is a workspace
+      # that builds binaries. This cannot be a job-level `if` with hashFiles(),
+      # which reads a workspace that does not exist before checkout — such a
+      # workflow fails to start at all, running none of its jobs.
       - name: Binary targets decide whether hawk applies
         id: bins
         run: |
+          if [ ! -f Cargo.toml ]; then
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            echo "no Cargo.toml; hawk does not apply"
+            exit 0
+          fi
           count=$(cargo metadata --no-deps --format-version 1 \
             | jq '[.packages[].targets[] | select(.kind | index("bin"))] | length')
           echo "count=${count}" >> "$GITHUB_OUTPUT"
+      # Heavy — it drives the compiler over the whole workspace — so the cache
+      # earns its place, but only where the job will actually build.
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        if: steps.bins.outputs.count != '0'
       - name: Install hawk
         if: steps.bins.outputs.count != '0'
         run: |
