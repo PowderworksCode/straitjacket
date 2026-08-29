@@ -17,7 +17,7 @@ pattern-level: Straitjacket tells you what is in the source, not what it means.
 The reasoning behind the rule set is written down in
 [the project philosophy](/project/philosophy/).
 
-Straitjacket is built by [The Powderworks Agentic Code
+Straitjacket is built by [The Powderworks Agentic Coding
 Consortium](https://powderworks.dev), and maintained by
 [Zack](https://github.com/zmaril). The code is MIT-licensed and lives on
 [GitHub](https://github.com/PowderworksCode/straitjacket), where releases,
