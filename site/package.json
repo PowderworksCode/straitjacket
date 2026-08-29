@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "rm -rf out && powderworks-docs build content --out out --site straitjacket --static public",
+    "build": "cp ../install.sh public/install && rm -rf out && powderworks-docs build content --out out --site straitjacket --static public",
     "social": "python3 node_modules/powderworks-docs/tools/social-card.py --site straitjacket",
     "social:check": "python3 node_modules/powderworks-docs/tools/social-card.py --site straitjacket --check",
     "deploy": "wrangler deploy",

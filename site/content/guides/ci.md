@@ -150,7 +150,7 @@ artifact from one run.
 There's no runtime dependency, so any CI works — install the binary and run it:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
+curl -fsSL https://straitjacket.dev/install | sh
 straitjacket
 ```
 
