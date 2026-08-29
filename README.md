@@ -49,9 +49,10 @@ Everything lives at **[straitjacket.dev](https://straitjacket.dev)**:
 ## Contributing
 
 The most useful thing you can send is a concrete example — a pattern
-Straitjacket should catch, or a false positive it shouldn't. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for what makes a good rule and how to run the
-tests. Release-to-release changes are in [CHANGELOG.md](CHANGELOG.md).
+Straitjacket should catch, or a false positive it shouldn't. `scripts/dev.sh`
+stands up everything you need: the Rust workspace, and the site dependencies the
+documentation tests run against. See [CONTRIBUTING.md](CONTRIBUTING.md) for what
+makes a good rule and how to run the tests. Release-to-release changes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
