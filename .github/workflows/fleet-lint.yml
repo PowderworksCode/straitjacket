@@ -33,6 +33,14 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
+          # Answered here rather than inside the heavy job, so a repository
+          # with no Rust never starts a runner for it and does not carry a
+          # check that can say nothing.
+          if [ ! -f Cargo.toml ]; then
+            echo "rust=false" >> "$GITHUB_OUTPUT"
+            echo "no Cargo.toml; hawk does not apply here"
+            exit 0
+          fi
           if [ -z "$BASE" ]; then
             echo "rust=true" >> "$GITHUB_OUTPUT"
             echo "not a pull request; the heavy job runs"
@@ -113,11 +121,6 @@ jobs:
       - name: Binary targets decide whether hawk applies
         id: bins
         run: |
-          if [ ! -f Cargo.toml ]; then
-            echo "count=0" >> "$GITHUB_OUTPUT"
-            echo "no Cargo.toml; hawk does not apply"
-            exit 0
-          fi
           # A workspace that cannot be read here is not a finding: several
           # members resolve a sibling checkout that this job does not clone.
           if ! meta=$(cargo metadata --no-deps --format-version 1 2>/dev/null); then
