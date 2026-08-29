@@ -1,0 +1,9 @@
+# codespell, run by the fleet's lint workflow, reads this on its way past.
+#
+# Two of the fleet's own names are English words with a space taken out, and a
+# spell checker cannot know that: infact is a project, and afterAll is bun's
+# hook. Both were "corrected" once, which renamed a project in the notes and
+# turned a test file into a syntax error, so they are named here rather than
+# left to be found again.
+[codespell]
+ignore-words-list = infact,afterall
