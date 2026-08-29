@@ -22,6 +22,17 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1"
+wasmer = { version = "7", default-features = false, features = ["sys", "cranelift"] }
+# Not used directly. wasmer pulls blake3, whose build.rs compiles NEON assembly
+# with cc on aarch64 -- which needs `aarch64-linux-musl-gcc` and so breaks the
+# aarch64 musl release build that .cargo/config.toml exists to make possible.
+# `pure` selects the Rust implementation instead, and naming blake3 here is what
+# unifies that feature across the whole graph.
+blake3 = { version = "1", default-features = false, features = ["pure"] }
+# TEMPORARY: pinned to the branch carrying beamte#3, which moves RoleTable out
+# of that crate's dev harness into its library. This must move back to the
+# default branch before this PR merges.
+beamte = { git = "https://github.com/PowderworksCode/beamte", branch = "claude/test-quality-checker-j5whfd" }
 clap = { version = "4", features = ["derive"] }
 ignore = "0.4"
 inventory = "0.3"

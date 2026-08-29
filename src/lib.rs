@@ -3,6 +3,7 @@ pub mod finding;
 pub mod instructions;
 pub mod language;
 pub mod manifest;
+pub mod pack;
 pub mod report;
 pub mod rule;
 pub mod rules;
