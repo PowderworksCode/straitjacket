@@ -7,7 +7,7 @@ would help a future agent. Keep temporary plans and task-specific notes out.
 ## Standing on its own
 
 - Straitjacket depends only on published crates. It previously took Cargo `path`
-  dependencies on sibling `entl` and `infact` checkouts, which meant it could
+  dependencies on sibling `entl` and `in fact` checkouts, which meant it could
   not build anywhere except a full `powderworks/` tree. Do not reintroduce a
   path dependency; if something here needs a sibling crate, that is a signal the
   feature belongs in the sibling, not here.

@@ -15,8 +15,8 @@ benches live in the session scratchpad; the eyebrow rule itself is committed on
    crates linked as C.
 3. **wasmer + cranelift is the runtime.** No wasmi fallback; environments that
    forbid executable pages are out of scope until one actually appears.
-4. **GHCR/OCI is the registry**, for treebank grammar packs and infact fact
-   packs alike, on the distribution scheme infact already wrote down in
+4. **GHCR/OCI is the registry**, for treebank grammar packs and in fact fact
+   packs alike, on the distribution scheme in fact already wrote down in
    `docs/infact-packs.md`. The wasmer.io registry is not used.
 5. **The contract is the pack ABI, not the engine**: WASI preview1 imports
    (three functions in practice) plus the `tb_*` exports. Anything honoring
@@ -92,7 +92,7 @@ already has the file text in hand.
 ```
 GHCR (OCI artifacts)                      the registry: cache, not authority
  ├─ treebank grammar packs (.wasm)        provenance linked INSIDE the module
- └─ infact fact packs (JSON + manifest)   provenance in the manifest
+ └─ in fact fact packs (JSON + manifest)   provenance in the manifest
         │
         ▼  digest-pinned pull, TOML lock
 local content-addressed cache
@@ -124,7 +124,7 @@ is linked into the `.wasm` itself.
    publish gate: re-derive, compare, then push.
 3. **Registry/cache client** — the resolution order, the digest lock, the
    derived-artifact cache keyed by (pack digest, wasmer version, target).
-   Template: `infact/docs/infact-packs.md`.
+   Template: `in fact/docs/in fact-packs.md`.
 4. Optional, second-order: a batch `tb_tree_dump` export (one call, packed
    node records, one memory read) for interpreter hosts. Under a JIT the
    per-call walk is already cheap; do this only if the proposed query API
@@ -149,10 +149,10 @@ is linked into the `.wasm` itself.
 6. Gates: the usual three, plus the x86_64-musl release build that killed the
    linked-C approach, plus straitjacket clean on itself.
 
-### infact
+### in fact
 
 Nothing changes. Its pack design is the template; the convergence is treebank
-adopting the same scheme, not infact moving.
+adopting the same scheme, not in fact moving.
 
 ## Sequencing
 
