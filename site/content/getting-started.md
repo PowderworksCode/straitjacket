@@ -37,8 +37,10 @@ straitjacket
 ```
 
 With no arguments, Straitjacket scans the current directory, honoring your
-`.gitignore`. Nine of the ten rules are on by default — it runs near its max
-and you ratchet down later. The tenth, `no-comments`, is a mode you opt into.
+`.gitignore`. Nine of the eleven rules are on by default — it runs near its
+max and you ratchet down later. The other two are modes you opt into:
+`no-comments`, and `test-quality`, which parses your tests with a downloaded
+grammar.
 
 If everything is clean you'll see:
 
