@@ -97,8 +97,10 @@ function pages(dir: string, trail: string[] = []): Page[] {
   return found;
 }
 
-// The registry is a TOML file the generator ships; only the per-site table is
-// read here, and the `default` hop covers whichever way the import wraps it.
+/**
+ * The shape this test reads out of the registry TOML the generator ships: only
+ * the per-site table, reached through whichever way the import wraps it.
+ */
 type SiteRegistry = {
   site?: Record<string, Record<string, string> | undefined>;
 };
