@@ -139,8 +139,17 @@ jobs:
             echo "no stylesheets tracked"
             exit 0
           fi
+          # stylelint-config-standard extends stylelint-config-recommended, so
+          # both have to be resolvable from wherever stylelint runs — `bunx
+          # stylelint` alone brings neither, and fails on the extends rather
+          # than on the CSS. They go in a scratch directory, and
+          # --config-basedir points the resolution there, so a repository that
+          # writes CSS still does not declare a linter it never imports.
+          tools=$(mktemp -d)
+          (cd "$tools" && bun add --silent stylelint@17.14.1 stylelint-config-standard@40.0.0)
           # shellcheck disable=SC2086 — the file list is deliberately split.
-          bunx --bun stylelint@16 --config .stylelintrc.json $sheets
+          "$tools/node_modules/.bin/stylelint" \
+            --config .stylelintrc.json --config-basedir "$tools" $sheets
 
   shell:
     name: shellcheck
