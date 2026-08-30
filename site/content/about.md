@@ -7,7 +7,7 @@ order: 2
 Straitjacket is a fast, deterministic scanner that flags the weird code and
 text LLMs produce: emoji glyphs in source files, hardcoded colors that should
 be theme tokens, sprawling thousand-line files, logic indented past the depth a
-reader can hold, and deferred-work markers like TODO left behind in comments.
+reader can hold, and deferred-work markers like `TODO` left behind in comments.
 It is one static Rust binary with no runtime dependencies, so it drops into any
 repository's CI regardless of language or stack.
 
