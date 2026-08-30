@@ -32,6 +32,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   source files, so a path rule would make this silent for both -- the failure
   it exists to prevent.
 
+- `--test-quality`, and `test-quality` in `straitjacket.toml`, which turn the
+  rule on beside the nine default ones. Without it the only way to reach an
+  opt-in rule was `only`, which runs it and nothing else, leaving a scan with
+  the default rules or this one and never both. `no-comments` had a switch
+  and this did not.
+
 - `test-rules` in `straitjacket.toml`, naming which of beamte's rules run.
   Unset runs all of them. An unknown name is refused when settings are read,
   listing what beamte does have, because a typo that silently disables a rule

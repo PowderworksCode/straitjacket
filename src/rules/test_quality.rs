@@ -30,7 +30,7 @@ use crate::pack::Pack;
 use crate::rule::{Candidate, FileRule, RuleDescriptor, RuleKey, SourceFile};
 use crate::rules::RuleRegistration;
 
-const KEY: RuleKey = RuleKey::new("test-quality");
+pub const KEY: RuleKey = RuleKey::new("test-quality");
 
 /// Off unless a configuration asks for it.
 ///

@@ -52,6 +52,8 @@ struct Cli {
 
     #[arg(long, help = "Enable the opt-in `no-comments` rule")]
     no_comments: bool,
+    #[arg(long, help = "Enable the opt-in `test-quality` rule")]
+    test_quality: bool,
 
     #[arg(long, help = "Scan JSON files, which are skipped by default")]
     include_json: bool,
@@ -331,6 +333,7 @@ fn resolve(cli: &Cli) -> anyhow::Result<Settings> {
         settings.max_nesting = value;
     }
     settings.no_comments |= cli.no_comments;
+    settings.test_quality |= cli.test_quality;
     settings.include_json |= cli.include_json;
     settings.no_ignore |= cli.no_ignore;
     settings.no_fail |= cli.no_fail;
