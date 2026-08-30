@@ -65,9 +65,12 @@ let_underscore_must_use = "deny"
 lto = true
 strip = true
 
-# beamte 0.2 (`env-read`, `Rule::scope`) is not on crates.io yet. Until it is,
-# the requirement above resolves through this patch to the branch that carries
-# it. Drop this table the moment 0.2 is published: the requirement is already
-# written for the registry, so deleting these three lines is the whole change.
+# beamte 0.2 (`env-read`, `Rule::scope`) is merged but not yet on crates.io.
+# Until it is, the requirement above resolves through this patch to beamte's
+# default branch, which carries it. Deliberately not a branch pin: the feature
+# branch was deleted when it merged, and a patch naming a branch that no longer
+# exists fails dependency resolution before a single check runs. Drop this
+# table the moment 0.2 is published -- the requirement is already written for
+# the registry, so deleting these lines is the whole change.
 [patch.crates-io]
-beamte = { git = "https://github.com/PowderworksCode/beamte", branch = "claude/sloth-env-vars-config-2g6g2t" }
+beamte = { git = "https://github.com/PowderworksCode/beamte" }
