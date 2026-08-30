@@ -34,10 +34,17 @@ would help a future agent. Keep temporary plans and task-specific notes out.
 - The asset name `straitjacket-<tag>-<target>.tar.gz` is a contract between the
   release workflow and `install.sh`. Changing it in one place breaks every
   existing installer invocation.
-- `install.sh` and `action.yml` carry `straitjacket-allow-file:no-comments`.
-  Neither `sh` nor YAML has a documentation-comment syntax to hoist reasoning
-  into, and both files are interface that people read before trusting. That is
-  the reason; do not extend the marker to implementation source.
+- `install.sh`, `action.yml` and `Cargo.toml` carry
+  `straitjacket-allow-file:no-comments`. None of `sh`, YAML or TOML has a
+  documentation-comment syntax to hoist reasoning into, and all three are
+  interface that people read before trusting. That is the reason; do not extend
+  the marker to implementation source.
+- `blake3` is a direct dependency that nothing calls. It is there to force its
+  `pure` feature across the graph: wasmer pulls blake3, whose `build.rs`
+  compiles NEON assembly with `cc` on aarch64 and so wants
+  `aarch64-linux-musl-gcc`. x86_64 uses intrinsics and builds fine, so removing
+  the entry breaks the aarch64 release and nothing else — which CI does not
+  build. Do not tidy it away.
 - CI builds the musl release target on every run. A release build that only
   breaks when a tag is pushed is discovered too late to fix quietly.
 - `install-smoke.yml` is **called** by the release workflow, not triggered by
@@ -52,7 +59,7 @@ would help a future agent. Keep temporary plans and task-specific notes out.
   token is present, because the plain release download URL redirects to another
   host and curl drops the credential across the hop. Without that, the script
   cannot install from a private repository at all.
-- Updating is re-running the installer. There is no `self update` subcommand and
+- Updating is re-running the installer. It has no `self update` subcommand and
   no version check: the installer already resolves the latest release, verifies
   it, and replaces the binary by rename, and the alternative is a CI gate that
   makes network requests of its own. Adding one would mean an HTTP client, TLS,
@@ -70,7 +77,7 @@ would help a future agent. Keep temporary plans and task-specific notes out.
   explicitly requested `version` never falls back: it was chosen on purpose.
 - `scripts/install.sh` is **fleet-owned**, from
   `conf/.ordnung/managed/publishing/rust/install.sh` with `{{name}}`,
-  `{{NAME}}`, `{{repo}}` and `{{website}}` substituted. So is
+  `{{NAME}}`, `{{repo}}` and `{{website}}` substituted, as are
   `.github/workflows/release.yml`, `install-smoke.yml` and `.cargo/config.toml`.
   Improving the installer — having it report the version it replaced, say — is
   an edit in `conf`, and doing it here is drift the next sync overwrites.
@@ -97,8 +104,8 @@ would help a future agent. Keep temporary plans and task-specific notes out.
   reviewer goes if a publish should need a human first.
 - The `crate` job in the release workflow publishes with **trusted
   publishing**: crates.io mints a token over OIDC that lives under an hour and
-  the action revokes it at the end. There is no registry token stored in this
-  repository, and there should never be one.
+  the action revokes it at the end. No registry token is stored in this
+  repository, and none should ever be.
 - crates.io scopes that trust to this repository **and this workflow filename**.
   Renaming `release.yml` breaks publishing until the trusted publisher is
   updated on crates.io to match.

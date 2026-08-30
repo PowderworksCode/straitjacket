@@ -52,6 +52,7 @@ Every key mirrors a [CLI flag](/reference/cli) one-for-one, in
 | `file-size-exclude` | list of path prefixes | — |
 | `todo-exclude` | list of path prefixes | — |
 | `theme-files` | list of paths allowed to define colors | — |
+| `test-rules` | list of [test rule](/reference/rules#test-quality) ids; unset runs all | — |
 | `no-comments` | boolean | `--no-comments` ([no-comments mode](/reference/rules#no-comments-mode)) |
 | `include-json` | boolean | `--include-json` |
 | `no-ignore` | boolean | `--no-ignore` |

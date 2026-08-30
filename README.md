@@ -27,6 +27,15 @@ src/theme/button.css:12:14  [color]  #ff6600
 straitjacket: 1 error(s), 0 warning(s) across 84 file(s); 0 suppressed
 ```
 
+Eleven rules ship; nine run at the first invocation. The other two you opt
+into: `no-comments`, and `test-quality`, which reads your tests the way the
+language writes them — `#[test]`, `@Test`, `it(...)`, `TEST(...)`,
+`test "..."` — and flags the ones that weaken what they prove, such as a loop
+or a conditional in a test body. It parses with a
+[treebank](https://github.com/PowderworksCode/treebank) grammar rather than
+matching text, and downloads that grammar the first time it meets a test file
+in a language, which is why it asks rather than assumes.
+
 Or build from source with `cargo install straitjacket`. Re-run the installer to
 update; it installs over the copy that is there. In CI, the bundled Action
 installs the binary and scans the checked-out repository:

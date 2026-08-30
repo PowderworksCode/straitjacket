@@ -10,6 +10,7 @@ mod motion;
 mod no_comments;
 mod regex_rule;
 mod stray_todo;
+mod test_quality;
 mod unused_marker;
 
 use anyhow::bail;
@@ -127,6 +128,32 @@ pub fn resolve(names: &[String]) -> anyhow::Result<Vec<RuleKey>> {
         bail!("unknown rule key(s): {}", unknown.join(", "));
     }
     Ok(resolved)
+}
+
+/// The beamte rules a configuration named, rejecting anything beamte does not
+/// have.
+///
+/// Straitjacket carries one rule key for all of them, so these names never
+/// reach [`resolve`] and would otherwise be accepted silently -- a typo in
+/// `test-rules` would quietly turn a rule off rather than say so.
+pub fn resolve_test_rules(names: &[String]) -> anyhow::Result<()> {
+    let unknown: Vec<&str> = names
+        .iter()
+        .filter(|name| beamte::rule(name).is_none())
+        .map(|name| name.as_str())
+        .collect();
+    if !unknown.is_empty() {
+        let known: Vec<&str> = beamte::catalogue()
+            .iter()
+            .map(|rule| rule.id.as_str())
+            .collect();
+        bail!(
+            "unknown test rule(s): {}. Straitjacket has: {}.",
+            unknown.join(", "),
+            known.join(", ")
+        );
+    }
+    Ok(())
 }
 
 pub use no_comments::KEY as NO_COMMENTS;

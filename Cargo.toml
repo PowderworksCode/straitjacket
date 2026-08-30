@@ -1,3 +1,8 @@
+# straitjacket-allow-file:no-comments — a manifest is interface, read by anyone
+# deciding whether to trust this dependency list, and TOML has no
+# documentation-comment syntax to hoist the reasoning into. The blake3 entry in
+# particular has to explain itself here: it looks unused, and removing it breaks
+# only the aarch64 release.
 [package]
 name = "straitjacket"
 version = "0.1.3"
@@ -22,6 +27,14 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1"
+wasmer = { version = "7", default-features = false, features = ["sys", "cranelift"] }
+# Not used directly. wasmer pulls blake3, whose build.rs compiles NEON assembly
+# with cc on aarch64 -- which needs `aarch64-linux-musl-gcc` and so breaks the
+# aarch64 musl release build that .cargo/config.toml exists to make possible.
+# `pure` selects the Rust implementation instead, and naming blake3 here is what
+# unifies that feature across the whole graph.
+blake3 = { version = "1", default-features = false, features = ["pure"] }
+beamte = "0.1"
 clap = { version = "4", features = ["derive"] }
 ignore = "0.4"
 inventory = "0.3"
@@ -30,6 +43,13 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "1.1"
 unic-emoji-char = "0.9"
+
+# Packs come from here, and now at scan time rather than only in the tests:
+# `test-quality` fetches the grammar for a language when it first meets a test
+# file in it. Only the acquisition half is taken -- `fetch-bytes` is treebank's
+# manifest, sha256 check and content-addressed cache with no wasm engine
+# attached, so it does not stand up a second engine beside wasmer above.
+treebank = { version = "0.3", default-features = false, features = ["fetch-bytes"] }
 
 [dev-dependencies]
 tempfile = "3"

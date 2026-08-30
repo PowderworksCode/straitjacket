@@ -26,6 +26,9 @@ pub struct FileConfig {
     pub no_ignore: Option<bool>,
     pub no_fail: Option<bool>,
     pub fail_on_unused_markers: Option<bool>,
+    /// Which of beamte's test-quality rules to run. Unset means all of them,
+    /// including any beamte adds later.
+    pub test_rules: Option<Vec<String>>,
     /// Sections that configured rules Straitjacket no longer has. They are
     /// accepted by the parser only so that [`reject_removed_sections`] can
     /// name the rule that went away.
@@ -54,6 +57,7 @@ pub struct Settings {
     pub no_ignore: bool,
     pub no_fail: bool,
     pub fail_on_unused_markers: bool,
+    pub test_rules: Vec<String>,
 }
 
 impl Default for Settings {
@@ -74,6 +78,7 @@ impl Default for Settings {
             no_ignore: false,
             no_fail: false,
             fail_on_unused_markers: true,
+            test_rules: Vec::new(),
         }
     }
 }
@@ -96,6 +101,9 @@ impl Settings {
         }
         if let Some(skip) = file.skip {
             self.skip = skip;
+        }
+        if let Some(test_rules) = file.test_rules {
+            self.test_rules = test_rules;
         }
         if let Some(value) = file.max_lines {
             self.max_lines = value;

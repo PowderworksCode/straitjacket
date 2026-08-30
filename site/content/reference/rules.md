@@ -33,6 +33,7 @@ installed version ever disagree.
 | `stray-todo` | on | deferred-work markers left in comments — `TODO`, `TBD`, `FIXME`, `WIP`. Do the work now, or record it in an issue the repository tracks. Exempt path prefixes with `todo-exclude`. |
 | `unused-marker` | on | a suppression marker that did not suppress anything — the finding it was written for is gone, so the marker is stale. Turn it off with `--no-fail-on-unused-markers`. |
 | `no-comments` | **opt-in** | every comment, in every language it knows (`//`, `/* */`, `#`, `--`, `<!-- -->`). See [no-comments mode](#no-comments-mode) below. |
+| `test-quality` | **opt-in** | tests that weaken what they prove — currently a loop or a conditional in a test body. Parses the file with a treebank grammar, so it reads a test the way the language writes one: `#[test]`, `@Test`, `it(...)`, `TEST(...)`, `test "..."`. See [test quality](#test-quality) below. |
 
 ### `deep-nesting` and embedded DSLs
 
@@ -82,6 +83,63 @@ handles text. A file-scoped marker is the right answer for a fixture module:
 ```rust
 // straitjacket-allow-file:emoji — these fixtures test Unicode handling
 ```
+
+## test quality
+
+Rules about what a test proves, rather than how the code is written. They come
+from [beamte](https://github.com/PowderworksCode/beamte), which implements them
+against the [treebank](https://treebank.dev) node vocabulary; straitjacket runs
+them and reports what comes back.
+
+Today that is one rule, `test-logic`: a loop or a conditional in a test body,
+restating [Testing on the Toilet: Don't Put Logic in
+Tests](https://testing.googleblog.com/2014/07/testing-on-toilet-dont-put-logic-in.html).
+A test is a concrete input/output pair, so state the values directly rather
+than computing them, and split the cases into separate tests.
+
+```sh
+straitjacket --only test-quality
+```
+
+or in [`straitjacket.toml`](/reference/config-file):
+
+```toml
+only = ["test-quality"]
+test-rules = ["test-logic"]   # optional: unset runs every rule beamte has
+```
+
+**It is opt-in because it reaches the network.** The grammar for a language is
+downloaded the first time a test file in that language is scanned, verified
+against a sha256 in treebank's manifest, and cached content-addressed after
+that. Grammars are fetched per language and only once a file has already looked
+like a test, so a Python repository never downloads the Java grammar. If a
+grammar cannot be fetched, the file is reported as **not read** rather than
+passing quietly — a checker that goes silent when its parser is missing reads
+exactly like a clean suite.
+
+### Languages
+
+Ten, being the ones treebank publishes a grammar for: Python, Ruby, Rust, Java,
+TypeScript, JavaScript, C, C++, Shell and Zig. A language with no grammar is
+not scanned by this rule at all.
+
+Test detection is per language, because no two mark a test the same way:
+
+| shape | looks like | languages |
+|---|---|---|
+| a name | `def test_adds`, `void test_adds()` | Python, Ruby, Shell, C |
+| an attribute | `#[test]`, `@Test` | Rust, Java |
+| an invocation taking a body | `it("adds", ...)`, `TEST(Suite, Adds)` | TypeScript, JavaScript, Ruby, C, C++ |
+| a declaration of its own | `test "adds" { ... }` | Zig |
+
+Rust and Zig keep tests inside ordinary source files, so files are not
+prefiltered by path alone.
+
+A suite is not a test: a loop in `describe(...)` is generating cases, not
+computing an expectation, and is left alone. In Ruby and JavaScript, iterating
+with a block — `users.each do |u|`, `users.forEach(...)` — counts as a loop,
+since that is the form those languages actually use.
+
 
 ## no-comments mode
 
