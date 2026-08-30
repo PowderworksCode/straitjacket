@@ -1,7 +1,7 @@
 ---
 title: Tune or disable rules
 description: Run a subset of rules, adjust thresholds, and change how findings are reported.
-order: 4
+order: 5
 ---
 
 Straitjacket runs every rule at its strictest by default. You ratchet *down* from

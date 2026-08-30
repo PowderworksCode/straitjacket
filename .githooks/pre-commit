@@ -1,0 +1,9 @@
+#!/bin/sh
+# The local gate: what CI would say about this tree, said before the commit
+# lands. Bypass with `git commit --no-verify`.
+#
+# Fleet-managed by conf (.ordnung/managed/githooks/pre-commit).
+set -eu
+
+hooks_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+exec "$hooks_dir/run-straitjacket" .

@@ -140,6 +140,11 @@ It verifies the download against the release `SHA256SUMS` and installs to
 `~/.local/bin`. Set `STRAITJACKET_INSTALL_DIR` to install somewhere else, or
 `STRAITJACKET_VERSION` to pin a tag instead of taking the latest.
 
+Re-running that command is also how you update: it installs over the copy that
+is there, by rename, so there is nothing to uninstall first and no separate
+update command to learn. See [Update Straitjacket](/guides/updating) for rolling
+one back and for keeping a machine in step with CI.
+
 From source, on any platform with a Rust toolchain:
 
 ```sh

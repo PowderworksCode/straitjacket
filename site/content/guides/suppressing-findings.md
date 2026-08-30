@@ -1,7 +1,7 @@
 ---
 title: Suppress a false positive
 description: Silence a finding on one line or across a whole file with straitjacket-allow markers.
-order: 2
+order: 3
 ---
 
 When a finding is a legitimate exception — a palette file that's supposed to be

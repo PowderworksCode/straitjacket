@@ -19,7 +19,8 @@ curl -fsSL https://straitjacket.dev/install | sh
 It verifies the download against the release checksums and installs to
 `~/.local/bin`. Prefer to build from source? `cargo install straitjacket`.
 Full details — install location overrides, pinning a version — are in the
-[installation reference](/reference/cli#installing).
+[installation reference](/reference/cli#installing). Running that same command
+again later is how you [update](/guides/updating).
 
 Check it's on your `PATH`:
 
@@ -127,5 +128,6 @@ straitjacket --skip motion      # everything except this rule
 ## Where to next
 
 - Wire Straitjacket into CI so it runs on every push → [Add Straitjacket to CI](/guides/ci)
+- Move to a new release, here and in CI → [Update Straitjacket](/guides/updating)
 - Save your settings in the repo → [Config file](/reference/config-file)
 - See every flag and its default → [CLI reference](/reference/cli)

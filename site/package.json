@@ -8,12 +8,18 @@
     "social:check": "python3 node_modules/@powderworks/docs/tools/social-card.py --site straitjacket --check",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format .",
     "test": "bun test"
   },
   "dependencies": {
-    "@powderworks/docs": "^0.2.0"
+    "@powderworks/docs": "0.2.0"
   },
   "devDependencies": {
-    "wrangler": "^4.123.0"
+    "@biomejs/biome": "2.5.11",
+    "@types/bun": "1.4.0",
+    "typescript": "5.9.3",
+    "wrangler": "4.127.0"
   }
 }

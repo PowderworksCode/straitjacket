@@ -59,6 +59,29 @@ would help a future agent. Keep temporary plans and task-specific notes out.
   token is present, because the plain release download URL redirects to another
   host and curl drops the credential across the hop. Without that, the script
   cannot install from a private repository at all.
+- Updating is re-running the installer. There is no `self update` subcommand and
+  no version check: the installer already resolves the latest release, verifies
+  it, and replaces the binary by rename, and the alternative is a CI gate that
+  makes network requests of its own. Adding one would mean an HTTP client, TLS,
+  gzip and sha256 in a crate whose whole dependency set is nine lean crates, in
+  a binary whose job is to run in other people's CI. Linters do not ship
+  self-update; toolchain managers do, and this is not one.
+- `action.yml` resolves an unset `version` input to the release the Action ref
+  ships, by reading the `Cargo.toml` sitting beside it in that checkout. That is
+  what makes `@v0.1.3` pin the scanner and not just the wrapper, and it is the
+  whole update strategy for CI: a bump is one line, and the new release's
+  findings land in the pull request that bumps it. A ref naming a version with
+  no release falls back to `latest` with a warning annotation — that case is
+  `@main`, a fork, and this repository's own `uses: ./` job during the window
+  between the commit that bumps `Cargo.toml` and the tag that releases it. An
+  explicitly requested `version` never falls back: it was chosen on purpose.
+- `scripts/install.sh` is **fleet-owned**, from
+  `conf/.ordnung/managed/publishing/rust/install.sh` with `{{name}}`,
+  `{{NAME}}`, `{{repo}}` and `{{website}}` substituted. So is
+  `.github/workflows/release.yml`, `install-smoke.yml` and `.cargo/config.toml`.
+  Improving the installer — having it report the version it replaced, say — is
+  an edit in `conf`, and doing it here is drift the next sync overwrites.
+  `action.yml` is **not** managed: ordnung carries a different one.
 
 ## Publishing to crates.io
 
@@ -124,6 +147,11 @@ would help a future agent. Keep temporary plans and task-specific notes out.
 
 - `.github/dependabot.yml` is fleet-owned and comes from the `conf` repository.
   Editing it here is drift, and the next sync overwrites it.
+- The fleet treats a mutable tag as a supply-chain hole, which is why Action
+  pins here are 40-character commit SHAs. That rules out publishing a moving
+  `v0` or `v0.1` tag for consumers of this repository's Action, however
+  conventional one is elsewhere. Consumers pin an exact tag or a SHA, and
+  Dependabot moves it.
 - CI is one `gate` job: `cargo fmt --all --check`, `cargo clippy --workspace
   --all-targets -- -D warnings`, `cargo test --workspace`. Actions are pinned by
   commit SHA; do not swap one for a tag to make updating easier.

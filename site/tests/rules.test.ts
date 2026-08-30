@@ -61,20 +61,23 @@ function claimedRuleIds(text: string): Map<string, string> {
   };
 
   for (const block of text.matchAll(/```[a-z]*\n([\s\S]*?)```/g)) {
-    const body = block[1];
+    const body = block[1] ?? "";
     for (const hit of body.matchAll(/\[([a-z][a-z0-9-]*)\]\s{2}/g)) {
-      add(hit[1], `sample output [${hit[1]}]`);
+      const id = hit[1];
+      if (id) add(id, `sample output [${id}]`);
     }
   }
 
   for (const hit of text.matchAll(/--(?:only|skip)[= ]+"?([a-z0-9,-]+)"?/g)) {
-    for (const id of hit[1].split(",").filter(Boolean)) {
+    for (const id of (hit[1] ?? "").split(",").filter(Boolean)) {
       add(id, `--only/--skip ${id}`);
     }
   }
 
-  for (const hit of text.matchAll(/^\s*(?:only|skip)\s*[:=]\s*\[([^\]]*)\]/gm)) {
-    for (const raw of hit[1].split(",")) {
+  for (const hit of text.matchAll(
+    /^\s*(?:only|skip)\s*[:=]\s*\[([^\]]*)\]/gm,
+  )) {
+    for (const raw of (hit[1] ?? "").split(",")) {
       const id = raw.trim().replace(/^["']|["']$/g, "");
       if (/^[a-z][a-z0-9-]*$/.test(id)) add(id, `config list ${id}`);
     }
@@ -160,10 +163,15 @@ describe("documented defaults match the binary", () => {
       for (const hit of context.matchAll(pattern)) at = hit.index ?? at;
       return at;
     };
-    for (const hit of flat.matchAll(/\*{0,2}[Dd]efault\*{0,2}\s*\*{0,2}(\d+)/g)) {
+    for (const hit of flat.matchAll(
+      /\*{0,2}[Dd]efault\*{0,2}\s*\*{0,2}(\d+)/g,
+    )) {
       const from = Math.max(0, (hit.index ?? 0) - 140);
       const context = flat.slice(from, hit.index ?? 0);
-      const nesting = nearest(context, /nesting budget|--max-nesting|nesting/gi);
+      const nesting = nearest(
+        context,
+        /nesting budget|--max-nesting|nesting/gi,
+      );
       const lines = nearest(
         context,
         /line budget|--max-lines|lines per file|long a file/gi,
@@ -198,7 +206,9 @@ describe("documented defaults match the binary", () => {
         .filter(
           (d) =>
             d.value !==
-            manifest.defaults[d.budget === "nesting" ? "max-nesting" : "max-lines"],
+            manifest.defaults[
+              d.budget === "nesting" ? "max-nesting" : "max-lines"
+            ],
         )
         .map((d) => `${d.budget} default stated as ${d.value}`);
       expect(stale).toEqual([]);

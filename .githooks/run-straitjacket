@@ -1,0 +1,27 @@
+#!/bin/sh
+# Run Straitjacket over the repository, the way CI does.
+#
+# It fails when Straitjacket is not installed rather than passing quietly: a
+# hook that skips its only check on the machines that lack the tool is a hook
+# that reports "clean" most loudly where it has looked least.
+#
+# Fleet-managed by conf (.ordnung/managed/githooks/run-straitjacket).
+set -eu
+
+if command -v straitjacket >/dev/null 2>&1; then
+    exec straitjacket "$@"
+fi
+
+# A local install that is not on PATH is still an install.
+for candidate in "$HOME/.local/bin/straitjacket" "$HOME/.cargo/bin/straitjacket"; do
+    if [ -x "$candidate" ]; then
+        exec "$candidate" "$@"
+    fi
+done
+
+echo "straitjacket is not installed, and this hook will not pass without it." >&2
+echo "" >&2
+echo "  curl -fsSL https://straitjacket.dev/install | sh" >&2
+echo "" >&2
+echo "Then re-run the commit. To skip the hooks once: git commit --no-verify" >&2
+exit 1

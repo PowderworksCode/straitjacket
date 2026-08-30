@@ -8,6 +8,7 @@ Each one is a focused recipe for a single job, assuming you already know the
 basics from the [tutorial](/getting-started).
 
 - [Add Straitjacket to CI](/guides/ci) — Run it on every push with the bundled GitHub Action.
+- [Update Straitjacket](/guides/updating) — Move to a new release on your machine and in CI, and keep the two in step.
 - [Suppress a false positive](/guides/suppressing-findings) — Silence a finding on one line or across a whole file.
 - [Exclude big or generated files](/guides/ignoring-files) — Keep generated output and vendored code out of the scan.
 - [Tune or disable rules](/guides/tuning-rules) — Run a subset, adjust thresholds, change the output.
