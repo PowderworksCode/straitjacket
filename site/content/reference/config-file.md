@@ -54,6 +54,8 @@ Every key mirrors a [CLI flag](/reference/cli) one-for-one, in
 | `theme-files` | list of paths allowed to define colors | — |
 | `test-rules` | list of [test rule](/reference/rules#test-quality) ids; unset runs all | — |
 | `no-comments` | boolean | `--no-comments` ([no-comments mode](/reference/rules#no-comments-mode)) |
+| `env-vars` | boolean | `--env-vars` ([environment variables](/reference/rules#environment-variables)) |
+| `env-files` | list of files licensed to read the process environment — the declared [configuration edge](/reference/rules#environment-variables) | — |
 | `include-json` | boolean | `--include-json` |
 | `no-ignore` | boolean | `--no-ignore` |
 | `no-fail` | boolean | `--no-fail` |

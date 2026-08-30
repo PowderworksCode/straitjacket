@@ -6,29 +6,27 @@
 //! findings through suppression and reporting. Beamte's DESIGN.md §6.1 splits
 //! the concerns line by line and this is the straitjacket column.
 //!
-//! So there is exactly one call into it -- `inspect_with` -- and adding a rule
-//! to beamte lights it up here with no change to this file. The alternative,
-//! a module per rule, is how the previous generation of these rules
-//! fragmented until each one knew a little about parsing and none of them
-//! agreed.
+//! So there is exactly one call into it -- `inspect_with` -- and adding a
+//! test-scoped rule to beamte lights it up here with no change to this file.
+//! The alternative, a module per rule, is how the previous generation of
+//! these rules fragmented until each one knew a little about parsing and none
+//! of them agreed. A rule whose beamte scope is `File` is the one exception:
+//! it reads every file rather than only the ones that look like tests, so it
+//! runs under `env-vars` instead, and the default selection here holds it
+//! out.
 //!
 //! Which rules run is configuration, because a project that wants one rule
 //! and a project that dislikes one rule are both real. `test-rules` in
 //! `straitjacket.toml` names them; unset means all of them.
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-
 use beamte::node::Unit;
 use beamte::{Property, RuleId, Selection};
 
 use crate::Settings;
-use crate::finding::{EvidenceStep, Finding, Location, Severity};
+use crate::finding::Severity;
 use crate::language::LanguageProfile;
-use crate::pack::Pack;
 use crate::rule::{Candidate, FileRule, RuleDescriptor, RuleKey, SourceFile};
-use crate::rules::RuleRegistration;
+use crate::rules::{RuleRegistration, beamte_findings};
 
 const KEY: RuleKey = RuleKey::new("test-quality");
 
@@ -133,58 +131,30 @@ fn path_names_a_test(path: &str) -> bool {
     lowered.contains("test") || lowered.contains("spec")
 }
 
-thread_local! {
-    /// Loaded packs, and the reasons for the ones that would not load.
-    ///
-    /// A `FileRule` must be `Send + Sync` and a wasmer `Store` is neither, so
-    /// the packs cannot live in the rule. They live beside it instead, which
-    /// costs nothing today -- the walk in `src/walk.rs` is a single sequential
-    /// iterator -- and stays correct rather than unsound if that ever changes.
-    /// A parallel walk would pay one JIT per thread per grammar.
-    ///
-    /// The failure is cached with the same weight as the success: a machine
-    /// with no network pays one failed fetch, not one per file.
-    static PACKS: RefCell<HashMap<&'static str, Result<Rc<Pack>, String>>> =
-        RefCell::new(HashMap::new());
-}
-
-/// The pack for a grammar, fetched once and then reused.
-///
-/// Fetched per language, and only once a file of that language has already
-/// looked like a test, so a Python repository never downloads the Java
-/// grammar.
-fn pack(grammar: &'static str) -> Result<Rc<Pack>, String> {
-    PACKS.with_borrow_mut(|packs| {
-        packs
-            .entry(grammar)
-            .or_insert_with(|| {
-                acquire(grammar)
-                    .map(Rc::new)
-                    .map_err(|error| format!("{error:#}"))
-            })
-            .clone()
-    })
-}
-
-fn acquire(grammar: &'static str) -> anyhow::Result<Pack> {
-    let bytes = treebank::fetch::fetch_bytes(grammar)?;
-    Pack::from_bytes(&bytes, &format!("the treebank {grammar} pack"))
-}
-
 pub struct TestQualityRule {
-    /// Empty means every rule beamte has, which is also what it will mean
-    /// after beamte grows one.
+    /// Empty means every test-scoped rule beamte has, which is also what it
+    /// will mean after beamte grows one.
     only: Vec<RuleId>,
+    /// The file-scoped rules, held out of the default selection: they are the
+    /// `env-vars` rule's to run, over every file rather than only the ones
+    /// that look like tests, and running them here as well would report each
+    /// read in a test file twice under two keys.
+    file_scoped: Vec<RuleId>,
 }
 
 impl TestQualityRule {
     pub fn new(only: Vec<RuleId>) -> Self {
-        Self { only }
+        let file_scoped = beamte::catalogue()
+            .iter()
+            .filter(|rule| rule.scope == beamte::Scope::File)
+            .map(|rule| rule.id)
+            .collect();
+        Self { only, file_scoped }
     }
 
     fn selection(&self) -> Selection<'_> {
         if self.only.is_empty() {
-            Selection::All
+            Selection::Except(&self.file_scoped)
         } else {
             Selection::Only(&self.only)
         }
@@ -208,6 +178,9 @@ fn build(settings: &Settings) -> Box<dyn FileRule> {
 fn instruction(_settings: &Settings) -> String {
     let mut sentences = Vec::new();
     for rule in beamte::catalogue() {
+        if rule.scope != beamte::Scope::Tests {
+            continue;
+        }
         sentences.push(format!("{} ({})", rule.instruction, rule.citation.title));
     }
     sentences.join(" ")
@@ -259,7 +232,7 @@ impl FileRule for TestQualityRule {
             return;
         };
 
-        let pack = match pack(entry.pack) {
+        let pack = match crate::pack::cached(entry.pack) {
             Ok(pack) => pack,
             Err(reason) => {
                 candidates.push(not_read(
@@ -296,82 +269,19 @@ impl FileRule for TestQualityRule {
 
         let unit = Unit::new(file.path, tree.source(), tree.root());
         for finding in beamte::inspect_with(&unit, &model, self.selection()) {
-            let line = finding.span.line;
-            let column = finding.span.column;
-            candidates.push(Candidate::line(Finding {
-                rule: KEY,
-                severity: severity_of(finding.property),
-                location: Location::point(file.path, line, column),
-                matched: matched_text(file.text, line),
-                message: message_of(&finding),
-                help: help_of(&finding),
-                related: Vec::new(),
-                evidence: finding
-                    .evidence
-                    .into_iter()
-                    .map(|step| EvidenceStep {
-                        location: Location::point(file.path, step.span.line, step.span.column),
-                        message: step.message,
-                    })
-                    .collect(),
-            }));
+            candidates.push(beamte_findings::candidate(
+                KEY,
+                severity_of(finding.property),
+                file.path,
+                file.text,
+                finding,
+            ));
         }
     }
 }
 
-/// A file that could not be checked, said out loud.
-///
-/// Beamte's DESIGN.md §7.3: a file that was not read is reported as unread,
-/// never as clean. Returning nothing here would mean a failed pack fetch
-/// reads exactly like a suite with nothing wrong in it, which is the failure
-/// this whole rule exists to stop making.
 fn not_read(path: &str, message: String, help: Option<String>) -> Candidate {
-    Candidate::file(Finding {
-        rule: KEY,
-        severity: Severity::Warning,
-        location: Location::point(path, 1, 1),
-        matched: String::new(),
-        message,
-        help,
-        related: Vec::new(),
-        evidence: Vec::new(),
-    })
-}
-
-/// How a beamte finding reads once straitjacket owns it.
-///
-/// The beamte rule is named in the message rather than in the key, because
-/// straitjacket registers one rule for all of them and `test-logic` would be
-/// a key nothing in its manifest declares.
-fn message_of(finding: &beamte::Finding) -> String {
-    format!("{}: {}", finding.rule, finding.message)
-}
-
-/// The fix, and the post the rule was issued under.
-///
-/// Beamte's DESIGN.md §6.3 puts citing the post on the host: it turns an
-/// argument with a linter into a much shorter argument with Titus Winters,
-/// and makes the rule set auditable rather than one person's taste.
-fn help_of(finding: &beamte::Finding) -> Option<String> {
-    let citation = beamte::rule(finding.rule.as_str()).map(|rule| rule.citation);
-    match (&finding.help, citation) {
-        (Some(help), Some(citation)) => {
-            Some(format!("{help} — {} ({})", citation.title, citation.url))
-        }
-        (Some(help), None) => Some(help.clone()),
-        (None, Some(citation)) => Some(format!("{} ({})", citation.title, citation.url)),
-        (None, None) => None,
-    }
-}
-
-/// The line a finding sits on, trimmed, for the `matched` field every other
-/// rule fills in from its own regex.
-fn matched_text(text: &str, line: usize) -> String {
-    text.lines()
-        .nth(line.saturating_sub(1))
-        .unwrap_or_default()
-        .trim()
-        .to_string()
+    beamte_findings::not_read(KEY, path, message, help)
 }
 
 #[cfg(test)]

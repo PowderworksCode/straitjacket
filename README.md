@@ -27,8 +27,11 @@ src/theme/button.css:12:14  [color]  #ff6600
 straitjacket: 1 error(s), 0 warning(s) across 84 file(s); 0 suppressed
 ```
 
-Eleven rules ship; nine run at the first invocation. The other two you opt
-into: `no-comments`, and `test-quality`, which reads your tests the way the
+Twelve rules ship; nine run at the first invocation. The other three you opt
+into: `no-comments`; `env-vars`, which flags code reading the process
+environment where nothing declares it (`std::env::var`, `os.environ`,
+`process.env`) outside the files you designate as the configuration edge; and
+`test-quality`, which reads your tests the way the
 language writes them — `#[test]`, `@Test`, `it(...)`, `TEST(...)`,
 `test "..."` — and flags the ones that weaken what they prove, such as a loop
 or a conditional in a test body. It parses with a
