@@ -34,7 +34,7 @@ wasmer = { version = "7", default-features = false, features = ["sys", "cranelif
 # `pure` selects the Rust implementation instead, and naming blake3 here is what
 # unifies that feature across the whole graph.
 blake3 = { version = "1", default-features = false, features = ["pure"] }
-beamte = "0.1"
+beamte = "0.3"
 clap = { version = "4", features = ["derive"] }
 ignore = "0.4"
 inventory = "0.3"
@@ -64,3 +64,11 @@ let_underscore_must_use = "deny"
 [profile.release]
 lto = true
 strip = true
+
+# beamte 0.3 (`const-declaration`, and `Rule::property`/`citation` as
+# `Option`) is not on crates.io yet. Until it is, the requirement above
+# resolves through this patch to the branch that carries it. Deliberately not
+# a branch pin that can vanish: drop this table the moment 0.3 is published,
+# since the requirement is already written for the registry.
+[patch.crates-io]
+beamte = { git = "https://github.com/PowderworksCode/beamte", branch = "claude/sj-const-files-2g6g2t" }

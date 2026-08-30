@@ -33,7 +33,7 @@ installed version ever disagree.
 | `stray-todo` | on | deferred-work markers left in comments — `TODO`, `TBD`, `FIXME`, `WIP`. Do the work now, or record it in an issue the repository tracks. Exempt path prefixes with `todo-exclude`. |
 | `unused-marker` | on | a suppression marker that did not suppress anything — the finding it was written for is gone, so the marker is stale. Turn it off with `--no-fail-on-unused-markers`. |
 | `no-comments` | **opt-in** | every comment, in every language it knows (`//`, `/* */`, `#`, `--`, `<!-- -->`). See [no-comments mode](#no-comments-mode) below. |
-| `stray-const` | **opt-in** | `SCREAMING_SNAKE_CASE` constants declared outside the files named by `const-files` — a limit, a path, a key or a magic number named where it happens to be used rather than where the program keeps its decisions. Needs no grammar, so it covers every structured language. See [stray constants](#stray-constants) below. |
+| `stray-const` | **opt-in** | `SCREAMING_SNAKE_CASE` constants **declared** outside the files named by `const-files` — a limit, a path, a key or a magic number named where it happens to be used rather than where the program keeps its decisions. Parses with a treebank grammar, so it can tell a declaration from a use. See [stray constants](#stray-constants) below. |
 | `test-quality` | **opt-in** | tests that weaken what they prove — currently a loop or a conditional in a test body. Parses the file with a treebank grammar, so it reads a test the way the language writes one: `#[test]`, `@Test`, `it(...)`, `TEST(...)`, `test "..."`. See [test quality](#test-quality) below. |
 
 ### `deep-nesting` and embedded DSLs
@@ -241,15 +241,32 @@ a finding with nowhere to move it, which is a configuration nobody means.
 point of having a constant; only the line that introduces the name is a
 finding. A rule that flagged uses could not be satisfied.
 
-**No grammar, so every structured language.** Unlike
-[`test-quality`](#test-quality), this rule reads declaration syntax rather
-than a parse tree, which means all eighteen languages straitjacket calls
-structured code, no download, and no network. It is opt-in only because designating the files is a decision no
-default can make.
+That distinction is the reason this rule parses. Telling a declaration from a
+use is a question about the tree, and answering it from text needs a table of
+declaration keywords per language — a parser written badly, which is what the
+first version of this rule was. The analysis is
+[beamte](https://github.com/PowderworksCode/beamte)'s `const-declaration`,
+which asks the node vocabulary instead:
 
-It reads code, not text: a declaration that is commented out or quoted inside
-a string is not a declaration, and those are the two places source most often
-appears without being code.
+| shape | what the tree says | verdict |
+|---|---|---|
+| `MAX_SIZE = 3` | a binding | declared |
+| `const MAX_SIZE: u8 = 3` | a binding | declared |
+| `from settings import MAX_SIZE` | a binding, and a directive | imported, not declared |
+| `def f(MAX_SIZE)` | a binding, and a parameter | a parameter, not a constant |
+| `n > MAX_SIZE` | neither | a use |
+
+A name bound inside a function is a local — it cannot be moved to another
+file, so it is not reported. Because the rule reads the vocabulary rather than
+any language's syntax, there is no per-language table to drift: a constant is
+recognised the same way in every grammar.
+
+**It is opt-in for two reasons**, either enough alone. The grammar for a
+language is downloaded the first time a file in that language is scanned, so
+the rule reaches the network; and it has nothing to say until you name the
+files constants belong in, which is a decision no default can make. A file
+whose grammar cannot be fetched is reported as **not read** rather than
+passing quietly.
 
 ### What counts as a constant
 
@@ -259,20 +276,12 @@ alone: `PI`, `OK`, `HTTP`, a Go export, a C header guard and a type parameter
 are all spelled that way, and flagging them would bury the constants among
 them.
 
-What declares one depends on the language:
+Ten languages, being the ones treebank publishes a grammar for: Python, Ruby,
+Rust, Java, TypeScript, JavaScript, C, C++, Shell and Zig.
 
-| shape | looks like | languages |
-|---|---|---|
-| a keyword | `const MAX_SIZE`, `static final int MAX_SIZE`, `const val MAX_SIZE` | Rust, C, C++, C#, Java, Kotlin, JS, TS, Swift, Scala, PHP, Zig, Go |
-| a preprocessor directive | `#define MAX_RETRIES 5` | C, C++ |
-| a bare assignment at the left margin | `MAX_SIZE = 3`, `MAX_SIZE=3` | Python, Ruby, Shell |
-| a bare assignment at any depth | `const (` … `MAX_SIZE = 100` … `)` | Go |
-
-The last two rows are why an **enum member is not a finding**: indented
-`RED_ONE = 1` inside a Python `class Colour(Enum)` or a C `enum` body is not a
-constant anyone could move to another file, so only the left margin counts in
-the languages that declare by assignment.
-
-Two misses are worth naming. A constant whose name is built at run time is
-invisible, as is PHP's `define('MAX_SIZE', 3)`, where the name lives inside a
-string this rule has deliberately blanked.
+One miss is worth naming. An enum member written as an assignment in a class
+body — Python's `RED_ONE = 1` inside `class Colour(Enum)` — is a binding
+outside any function and is reported, though it cannot be moved either.
+Telling an enum from a class needs its base class, which is a fact about a
+library rather than about the tree; name those files in `const-files`, or
+suppress with a marker.

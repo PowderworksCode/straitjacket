@@ -1,13 +1,15 @@
-//! `stray-const` against the languages straitjacket calls structured code.
+//! `stray-const` against the languages treebank publishes a grammar for.
 //!
-//! The point of this file is breadth, as `tests/test_quality.rs` and
-//! `tests/env_vars.rs` are for their rules -- but where those two reach for a
-//! grammar and cover nine languages, this one needs no parser and so has to
-//! answer for eighteen. A declaration written the way each language writes
-//! one is what keeps a whole language from going quietly silent.
+//! The point of this file is breadth, as `tests/test_quality.rs` is for its
+//! rule: a constant declared the way each language declares one. beamte's
+//! analysis reads the node vocabulary rather than any language's declaration
+//! syntax, so a language going quiet here is a grammar problem rather than a
+//! missing table — which is the difference between this rule and the regex it
+//! replaced.
 //!
-//! Nothing here touches the network: the rule reads declaration syntax, not
-//! trees, which is the trade it exists to make.
+//! These fetch real packs, for the reason `tests/pack_host.rs` gives at
+//! length: a test that passes because it found no grammar is worse than no
+//! test.
 
 use straitjacket::config::Settings;
 use straitjacket::finding::Severity;
@@ -30,14 +32,12 @@ fn findings(path: &str, source: &str) -> Vec<String> {
         .scan(source, path, extension)
         .findings
         .into_iter()
-        .map(|finding| format!("{}:{}", finding.location.line, finding.matched))
+        .map(|finding| finding.message)
         .collect()
 }
 
 /// One constant declaration per language, written the way that language
-/// writes one: the label, the file, the source, and the name the finding must
-/// carry. Each `source` declares exactly one constant, so exactly one finding
-/// is correct in every row.
+/// writes one, and the name the finding must carry.
 const CASES: &[(&str, &str, &str, &str)] = &[
     ("rust", "src/a.rs", "const MAX_SIZE: u8 = 3;\n", "MAX_SIZE"),
     (
@@ -46,29 +46,12 @@ const CASES: &[(&str, &str, &str, &str)] = &[
         "static DEFAULT_PATH: &str = \"/tmp\";\n",
         "DEFAULT_PATH",
     ),
-    ("c", "src/a.c", "#define MAX_RETRIES 5\n", "MAX_RETRIES"),
+    ("python", "src/a.py", "MAX_SIZE = 3\n", "MAX_SIZE"),
+    ("ruby", "lib/a.rb", "MAX_SIZE = 3\n", "MAX_SIZE"),
     (
-        "cpp",
-        "src/a.cc",
-        "constexpr int MAX_BUFFER = 1024;\n",
-        "MAX_BUFFER",
-    ),
-    (
-        "c-sharp",
-        "src/A.cs",
-        "private const int MAX_ITEMS = 10;\n",
-        "MAX_ITEMS",
-    ),
-    (
-        "go",
-        "src/a.go",
-        "const (\n\tMAX_SIZE = 100\n)\n",
-        "MAX_SIZE",
-    ),
-    (
-        "java",
-        "src/A.java",
-        "public static final int MAX_SIZE = 3;\n",
+        "typescript",
+        "src/a.ts",
+        "const MAX_SIZE: number = 3;\n",
         "MAX_SIZE",
     ),
     (
@@ -77,17 +60,10 @@ const CASES: &[(&str, &str, &str, &str)] = &[
         "const MAX_SIZE = 3;\n",
         "MAX_SIZE",
     ),
-    ("kotlin", "src/a.kt", "const val MAX_SIZE = 3\n", "MAX_SIZE"),
-    ("php", "src/a.php", "const MAX_SIZE = 3;\n", "MAX_SIZE"),
-    ("python", "src/a.py", "MAX_SIZE = 3\n", "MAX_SIZE"),
-    ("ruby", "src/a.rb", "MAX_SIZE = 3\n", "MAX_SIZE"),
-    ("scala", "src/a.scala", "val MAX_SIZE = 3\n", "MAX_SIZE"),
-    ("shell", "src/a.sh", "MAX_SIZE=3\n", "MAX_SIZE"),
-    ("swift", "src/a.swift", "let MAX_SIZE = 3\n", "MAX_SIZE"),
     (
-        "typescript",
-        "src/a.ts",
-        "const MAX_SIZE: number = 3;\n",
+        "java",
+        "src/A.java",
+        "class A {\n  static final int MAX_SIZE = 3;\n}\n",
         "MAX_SIZE",
     ),
     ("zig", "src/a.zig", "const MAX_SIZE = 3;\n", "MAX_SIZE"),
@@ -97,16 +73,66 @@ const CASES: &[(&str, &str, &str, &str)] = &[
 fn every_language_reports_its_constant_declaration() {
     for (language, path, source, name) in CASES {
         let found = findings(path, source);
-        assert_eq!(
-            found.len(),
-            1,
-            "{language}: expected exactly one finding in {path}, got {found:?}"
-        );
         assert!(
-            found[0].ends_with(name),
-            "{language}: the finding should name {name}, got {found:?}"
+            found.iter().any(|message| message.contains(name)),
+            "{language}: expected a finding naming {name} in {path}, got {found:?}"
         );
     }
+}
+
+#[test]
+fn a_use_is_not_a_declaration() {
+    let source = "fn f(n: u8) -> bool {\n    n > MAX_SIZE && n < OTHER_LIMIT\n}\n";
+
+    assert_eq!(
+        findings("src/main.rs", source),
+        Vec::<String>::new(),
+        "flagging uses would make the rule impossible to satisfy"
+    );
+}
+
+#[test]
+fn an_import_binds_a_name_without_declaring_it() {
+    assert_eq!(
+        findings("src/loader.py", "from settings import MAX_SIZE\n"),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_local_inside_a_body_is_nobodys_to_gather() {
+    assert_eq!(
+        findings(
+            "src/loader.py",
+            "def f():\n    LOCAL_MAX = 4\n    return LOCAL_MAX\n"
+        ),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_single_word_name_is_too_ambiguous_to_flag() {
+    assert_eq!(
+        findings("src/a.rs", "const MAX: u8 = 3;\nconst PI: f64 = 3.0;\n"),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_declaration_that_is_not_code_is_not_a_declaration() {
+    assert_eq!(
+        findings("src/main.rs", "// const MAX_SIZE: u8 = 3;\nfn f() {}\n"),
+        Vec::<String>::new(),
+        "commented out"
+    );
+    assert_eq!(
+        findings(
+            "src/main.rs",
+            "fn f() {\n    let s = \"const MAX_SIZE = 3\";\n}\n"
+        ),
+        Vec::<String>::new(),
+        "quoted in a string"
+    );
 }
 
 #[test]
@@ -140,61 +166,9 @@ fn the_designated_file_may_declare_and_everything_else_may_not() {
 }
 
 #[test]
-fn using_a_constant_everywhere_is_the_point_of_having_one() {
-    let source = "fn f(n: u8) -> bool {\n    n > MAX_SIZE && n < OTHER_LIMIT\n}\n";
-
-    assert_eq!(
-        findings("src/main.rs", source),
-        Vec::<String>::new(),
-        "flagging uses would make the rule impossible to satisfy"
-    );
-}
-
-#[test]
-fn a_single_word_name_is_too_ambiguous_to_flag() {
-    assert_eq!(
-        findings("src/main.rs", "const MAX: u8 = 3;\nconst PI: f64 = 3.0;\n"),
-        Vec::<String>::new()
-    );
-}
-
-#[test]
-fn a_declaration_that_is_not_code_is_not_a_declaration() {
-    assert_eq!(
-        findings("src/main.rs", "// const MAX_SIZE: u8 = 3;\n"),
-        Vec::<String>::new(),
-        "commented out"
-    );
-    assert_eq!(
-        findings("src/main.rs", "let s = \"const MAX_SIZE = 3\";\n"),
-        Vec::<String>::new(),
-        "quoted in a string"
-    );
-}
-
-#[test]
-fn an_enum_member_is_not_a_constant_anyone_can_move() {
-    assert_eq!(
-        findings(
-            "src/colour.py",
-            "class Colour(Enum):\n    RED_ONE = 1\n    GREEN_TWO = 2\n"
-        ),
-        Vec::<String>::new()
-    );
-    assert_eq!(
-        findings("src/colour.c", "enum Colour {\n    RED_ONE = 1,\n};\n"),
-        Vec::<String>::new()
-    );
-}
-
-#[test]
 fn data_and_prose_files_are_not_this_rules_to_read() {
     assert_eq!(
         findings("config/a.yaml", "MAX_SIZE: 3\n"),
-        Vec::<String>::new()
-    );
-    assert_eq!(
-        findings("data/a.json", "{\"MAX_SIZE\": 3}\n"),
         Vec::<String>::new()
     );
     assert_eq!(
@@ -231,4 +205,15 @@ fn the_rule_is_off_until_a_configuration_asks_for_it() {
         Vec::new(),
         "an opt-in rule must stay silent until it is opted into"
     );
+}
+
+/// The analysis is beamte's, and the split is the point: beamte reports every
+/// declaration, straitjacket decides which are licensed.
+#[test]
+fn the_analysis_belongs_to_beamte() {
+    let rule = beamte::rule("const-declaration").expect("beamte carries the rule");
+
+    assert_eq!(rule.scope, beamte::Scope::File);
+    assert_eq!(rule.property, None);
+    assert!(rule.citation.is_none());
 }

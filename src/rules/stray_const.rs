@@ -1,136 +1,97 @@
-//! `SCREAMING_SNAKE_CASE` constants declared outside the files that hold
-//! them.
+//! Constants declared outside the files that hold them, found by beamte's
+//! `const-declaration` rule over a treebank pack.
 //!
-//! A constant is a decision about the program: a limit, a path, a key, a
-//! magic number somebody named. Scattered through the tree, those decisions
-//! cannot be read as a set, and the same one gets made twice under two names.
-//! Gathering them is not tidiness -- it is what makes the list of decisions
-//! reviewable. `const-files` names where they live and everything outside is
-//! reported.
+//! Straitjacket implements none of the analysis and must not start. Beamte
+//! owns what a constant declaration *is*; this file owns everything beamte
+//! refuses to: getting a grammar, parsing, deciding a severity, and -- the
+//! part that is policy about a repository rather than a fact about a tree --
+//! naming the files that hold the constants. `const-files` in
+//! `straitjacket.toml` names them, and a declaration inside one is what the
+//! rule is asking for rather than something to report.
 //!
-//! Deliberately not a parser. A rule that has to tell one expression from
-//! another needs a tree, which is why `test-quality` fetches a treebank
-//! grammar. This one asks a much narrower question -- does a line *declare* a
-//! screaming-snake name -- and declaration syntax answers that on its own. So
-//! it runs over all eighteen languages straitjacket calls structured code
-//! rather than the nine with a pack, needs no network, and is off by default
-//! only because designating the files is a decision no default can make.
+//! The analysis is beamte's because the question is a tree question. The
+//! whole content of the rule is the difference between *declaring* a name and
+//! *using* one, and text cannot tell those apart without a per-language table
+//! of declaration keywords -- which is a parser written badly, and was the
+//! first attempt at this rule. Beamte asks the vocabulary instead: a
+//! `_binding` that is neither an import nor a parameter, outside any
+//! callable. That needs no language table at all, so unlike `test-quality`
+//! there is nothing here to keep in step per language beyond which pack
+//! serves which grammar.
 //!
-//! It reads [`comments::code`], not the raw text: a declaration commented out
-//! or quoted inside a string is not a declaration, and those are the two
-//! places source code most often appears without being code.
-//!
-//! **Declarations, not uses.** `MAX_SIZE` mentioned in an expression is the
-//! point of having a constant, and flagging it would make the rule
-//! unsatisfiable. Only the site that introduces the name is a finding.
+//! A finding is an error rather than a mapping of beamte's property -- the
+//! rule has no property, being a fact about how code is arranged rather than
+//! a claim about a test. It is opt-in, and a repository that turned it on
+//! wants the declaration moved, not mentioned.
 
-use std::path::{Path, PathBuf};
-
-use regex::Regex;
+use beamte::node::Unit;
+use beamte::{RuleId, Selection};
 
 use crate::Settings;
 use crate::finding::{Finding, Location, Severity};
-use crate::language::{LanguageProfile, STRUCTURED_CODE};
+use crate::language::LanguageProfile;
 use crate::rule::{Candidate, FileRule, RuleDescriptor, RuleKey, SourceFile};
 use crate::rules::RuleRegistration;
-use crate::rules::comments;
 
 pub const KEY: RuleKey = RuleKey::new("stray-const");
 
 /// Off unless a configuration asks for it.
 ///
-/// Unlike every default-on rule, this one has nothing to say until somebody
-/// says where constants belong. A default would be a guess about a layout
-/// straitjacket cannot see.
+/// Two reasons, either enough on its own. The first scan of a language
+/// downloads its grammar, and a scan that reaches the network because the
+/// tool was upgraded is not a surprise anyone should get for free. And the
+/// rule has nothing to say until somebody says where constants belong, which
+/// is a decision no default can make.
 const DEFAULT_ENABLED: bool = false;
 
-/// A screaming-snake name: at least two words, joined by underscores.
+/// A language this rule can read: the ten treebank publishes a grammar for.
 ///
-/// The underscore is required, which is the whole difference between a rule
-/// and a nuisance. A single all-caps word is ambiguous in every language that
-/// has one -- `PI`, `OK`, `HTTP`, a Go export, a C macro guard, a type
-/// parameter -- and flagging those would bury the constants among them.
-const NAME: &str = r"[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+";
+/// Only the pack name is needed. beamte's rule reads the node vocabulary
+/// rather than any language's declaration syntax, so there is no per-language
+/// table to drift -- which is the difference between this rule and both of
+/// straitjacket's other beamte hosts.
+const SUPPORTED: &[(&str, &str)] = &[
+    ("c", "c"),
+    ("cpp", "cpp"),
+    ("java", "java"),
+    ("javascript", "typescript"),
+    ("python", "python"),
+    ("ruby", "ruby"),
+    ("rust", "rust"),
+    ("shell", "bash"),
+    ("typescript", "typescript"),
+    ("zig", "zig"),
+];
 
-/// Whether a bare `NAME = value` declares a constant in this language.
-///
-/// In the C family and its descendants a declaration carries a keyword, so a
-/// bare assignment is either a write to something already declared or an enum
-/// member -- neither of which is a constant anyone can move. Reading it as a
-/// declaration there is how this rule would come to flag every `enum` body in
-/// the repository.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Bare {
-    /// Never; the language spells declarations with a keyword.
-    No,
-    /// Only at the left margin, which is where a module-level constant sits.
-    /// Indented, the same line is a class attribute, an enum member or a
-    /// local, and none of those belongs in another file.
-    TopLevel,
-    /// At any indentation: Go writes its constants inside a `const (` block.
-    AnyIndent,
-}
-
-fn bare_form(language: &LanguageProfile) -> Bare {
-    match language.id {
-        "python" | "ruby" | "shell" => Bare::TopLevel,
-        "go" => Bare::AnyIndent,
-        _ => Bare::No,
-    }
+fn supported(language: &LanguageProfile) -> Option<&'static str> {
+    SUPPORTED
+        .iter()
+        .find(|(id, _)| *id == language.id)
+        .map(|(_, pack)| *pack)
 }
 
 pub struct StrayConstRule {
     /// The designated homes. A declaration inside one is what the rule is
-    /// asking for, so it is not reported.
-    allow: Vec<PathBuf>,
-    /// `const NAME`, `static final int NAME`, `let NAME` -- a declaration
-    /// keyword, an optional type, then the name.
-    ///
-    /// The group between the keyword and the name is that type:
-    /// `static final int MAX_SIZE`, `const char *MAX_NAME`. Where the keyword
-    /// sits directly against the name it matches nothing, and where a second
-    /// keyword intervenes the scan simply starts again at that keyword --
-    /// which is how `static final int` finds its name on the third attempt
-    /// rather than needing a rule of its own.
-    keyword: Regex,
-    /// `#define NAME`.
-    define: Regex,
-    /// `NAME = value` at the left margin.
-    bare_top: Regex,
-    /// `NAME = value` at any indentation.
-    bare_any: Regex,
-    /// A screaming-snake name anywhere at all.
-    ///
-    /// The prefilter, and deliberately not one of the patterns above: those
-    /// are anchored to a line, so asking one of them about a whole file
-    /// answers for its first line only. That is how an indented Go `const (`
-    /// block came to be skipped, caught by the test that covers Go. A bare
-    /// name is both cheaper to look for and free of anchors.
-    name: Regex,
+    /// asking for, so it is not reported. Same matching as
+    /// `file-size-exclude`, so one notion of "this path" covers both.
+    allow: Vec<std::path::PathBuf>,
+    /// `Only(const-declaration)`, resolved through beamte's catalogue so a
+    /// name this crate no longer has cannot reach a scan.
+    only: Vec<RuleId>,
 }
 
 impl StrayConstRule {
-    pub fn new(allow: Vec<PathBuf>) -> Self {
-        let compile =
-            |pattern: String| Regex::new(&pattern).expect("built-in rule patterns must compile");
-        Self {
-            allow,
-            keyword: compile(format!(
-                r"\b(?:const|constexpr|static|final|readonly|let|var|val)\s+(?:mut\s+)?(?:[A-Za-z_][A-Za-z0-9_:<>\[\].]*\s+)?(?:[*&]+\s*)?({NAME})\b"
-            )),
-            define: compile(format!(r"^\s*#\s*define\s+({NAME})\b")),
-            bare_top: compile(format!(
-                r"^(?:export\s+|readonly\s+)?({NAME})\s*(?::[^=]*)?="
-            )),
-            bare_any: compile(format!(
-                r"^\s*(?:export\s+|readonly\s+)?({NAME})\s*(?::[^=]*)?="
-            )),
-            name: compile(NAME.to_owned()),
-        }
+    pub fn new(allow: Vec<std::path::PathBuf>) -> Self {
+        let only = beamte::catalogue()
+            .iter()
+            .filter(|rule| rule.id.as_str() == "const-declaration")
+            .map(|rule| rule.id)
+            .collect();
+        Self { allow, only }
     }
 
     fn designated(&self, path: &str) -> bool {
-        let path = Path::new(path);
+        let path = std::path::Path::new(path);
         self.allow.iter().any(|allowed| {
             path == allowed
                 || path.starts_with(allowed)
@@ -138,47 +99,15 @@ impl StrayConstRule {
         })
     }
 
-    /// Every declaration on one line, as (byte offset, name).
-    ///
-    /// The line is already masked, so anything found here is code.
-    fn declarations(&self, line: &str, bare: Bare) -> Vec<(usize, String)> {
-        let mut found: Vec<(usize, String)> = Vec::new();
-        let mut take = |regex: &Regex, assignment: bool| {
-            for captures in regex.captures_iter(line) {
-                let Some(name) = captures.get(1) else {
-                    continue;
-                };
-                if assignment && !assigns(line, captures.get(0).map_or(0, |whole| whole.end())) {
-                    continue;
-                }
-                if found.iter().any(|(at, _)| *at == name.start()) {
-                    continue;
-                }
-                found.push((name.start(), name.as_str().to_owned()));
-            }
-        };
-
-        take(&self.keyword, false);
-        take(&self.define, false);
-        match bare {
-            Bare::No => {}
-            Bare::TopLevel => take(&self.bare_top, true),
-            Bare::AnyIndent => take(&self.bare_any, true),
+    fn hint(&self) -> String {
+        match self.allow.first() {
+            Some(home) => format!(
+                "declare it in {} and reference it from here",
+                home.display()
+            ),
+            None => "declare it in one of the files named by `const-files`".to_string(),
         }
-
-        found.sort_by_key(|(at, _)| *at);
-        found
     }
-}
-
-/// Whether the `=` a bare pattern stopped on is really an assignment.
-///
-/// The regex crate has no lookahead, so the character after the match is
-/// checked here instead. `==` is a comparison, `=>` a hash rocket or a match
-/// arm, and `=~` a Ruby match -- three ways to write a screaming-snake name
-/// beside an equals sign without declaring anything.
-fn assigns(line: &str, end: usize) -> bool {
-    !matches!(line.as_bytes().get(end), Some(b'=' | b'>' | b'~'))
 }
 
 fn build(settings: &Settings) -> Box<dyn FileRule> {
@@ -186,11 +115,11 @@ fn build(settings: &Settings) -> Box<dyn FileRule> {
 }
 
 fn instruction(settings: &Settings) -> String {
+    let sentence = beamte::rule("const-declaration")
+        .map(|rule| rule.instruction.to_string())
+        .unwrap_or_default();
     if settings.const_files.is_empty() {
-        return "Declare SCREAMING_SNAKE_CASE constants in the designated constant \
-                files named by `const-files` in straitjacket.toml, and reference them \
-                from everywhere else."
-            .to_string();
+        return sentence;
     }
     let designated = settings
         .const_files
@@ -198,10 +127,7 @@ fn instruction(settings: &Settings) -> String {
         .map(|path| path.display().to_string())
         .collect::<Vec<_>>()
         .join(", ");
-    format!(
-        "SCREAMING_SNAKE_CASE constants are declared in {designated} and nowhere else. \
-         Reference them from there rather than declaring one where it is used."
-    )
+    format!("{sentence} The files that hold them are {designated}.")
 }
 
 inventory::submit! {
@@ -222,213 +148,171 @@ impl FileRule for StrayConstRule {
     }
 
     fn applies_to(&self, language: &LanguageProfile) -> bool {
-        language.has_facet(&STRUCTURED_CODE)
+        supported(language).is_some()
     }
 
     fn check(&self, file: SourceFile<'_>, candidates: &mut Vec<Candidate>) {
+        let Some(pack_name) = supported(file.language) else {
+            return;
+        };
         if self.designated(file.path) {
             return;
         }
-        if !self.name.is_match(file.text) {
+        if !looks_like_a_constant(file.text) {
             return;
         }
+        let Some(model) = beamte::TestModel::for_language(file.language.id)
+            .or_else(|| beamte::TestModel::for_language(pack_name))
+        else {
+            return;
+        };
 
-        let bare = bare_form(file.language);
-        for (line_index, line) in comments::code(file.text, file.language).iter().enumerate() {
-            for (offset, name) in self.declarations(line, bare) {
-                let mut finding = Finding::new(
-                    KEY,
-                    Severity::Error,
-                    Location::point(file.path, line_index + 1, offset + 1),
-                    name.clone(),
-                    format!("`{name}` is declared here rather than in a constant file"),
-                );
-                finding.help = Some(self.hint());
-                candidates.push(Candidate::line(finding));
+        let pack = match crate::pack::cached(pack_name) {
+            Ok(pack) => pack,
+            Err(reason) => {
+                candidates.push(not_read(
+                    file.path,
+                    format!(
+                        "not read: the {pack_name} grammar could not be loaded, so this \
+                         file was not checked for constant declarations ({reason})"
+                    ),
+                    Some(
+                        "Packs are downloaded once and cached. Check network access, or \
+                         skip `stray-const` if this environment is offline by design."
+                            .to_string(),
+                    ),
+                ));
+                return;
             }
+        };
+
+        let tree = match pack.parse(file.text) {
+            Ok(tree) => tree,
+            Err(error) => {
+                candidates.push(not_read(
+                    file.path,
+                    format!("not read: this file did not parse as {pack_name} ({error:#})"),
+                    None,
+                ));
+                return;
+            }
+        };
+
+        let unit = Unit::new(file.path, tree.source(), tree.root());
+        for finding in beamte::inspect_with(&unit, &model, Selection::Only(&self.only)) {
+            let line = finding.span.line;
+            let column = finding.span.column;
+            let mut owned = Finding::new(
+                KEY,
+                Severity::Error,
+                Location::point(file.path, line, column),
+                matched_text(file.text, line),
+                finding.message,
+            );
+            owned.help = Some(self.hint());
+            candidates.push(Candidate::line(owned));
         }
     }
 }
 
-impl StrayConstRule {
-    fn hint(&self) -> String {
-        match self.allow.first() {
-            Some(home) => format!(
-                "declare it in {} and reference it from here",
-                home.display()
-            ),
-            None => "declare it in one of the files named by `const-files`".to_string(),
+/// Whether the text holds anything shaped like a screaming-snake name.
+///
+/// The cheap half of the decision, and the reason a file that cannot produce
+/// a finding is never handed to a grammar. It over-reports on purpose: `A_B` inside a
+/// comment passes here and is dismissed by the parse, which is the right way
+/// round for a prefilter.
+fn looks_like_a_constant(text: &str) -> bool {
+    let mut upper_run = 0usize;
+    let mut seen_underscore = false;
+    for character in text.chars() {
+        if character.is_ascii_uppercase() || character.is_ascii_digit() {
+            upper_run += 1;
+        } else if character == '_' && upper_run > 0 {
+            seen_underscore = true;
+        } else {
+            if seen_underscore && upper_run > 1 {
+                return true;
+            }
+            upper_run = 0;
+            seen_underscore = false;
         }
     }
+    seen_underscore && upper_run > 0
+}
+
+/// A file that could not be checked, said out loud.
+///
+/// Beamte's DESIGN.md §7.3: a file that was not read is reported as unread,
+/// never as clean. Returning nothing would mean a failed pack fetch reads
+/// exactly like a file with nothing wrong in it.
+fn not_read(path: &str, message: String, help: Option<String>) -> Candidate {
+    let mut finding = Finding::new(
+        KEY,
+        Severity::Warning,
+        Location::point(path, 1, 1),
+        String::new(),
+        message,
+    );
+    finding.help = help;
+    Candidate::file(finding)
+}
+
+/// The line a finding sits on, trimmed, for the `matched` field every other
+/// rule fills in from its own regex.
+fn matched_text(text: &str, line: usize) -> String {
+    text.lines()
+        .nth(line.saturating_sub(1))
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::StrayConstRule;
-    use crate::language::language_profile;
-    use crate::rule::{Candidate, FileRule, SourceFile};
+    use super::{KEY, SUPPORTED, StrayConstRule, looks_like_a_constant};
 
-    fn findings(source: &str, language: &str) -> Vec<(usize, usize, String)> {
-        at(source, language, "src/thing.x")
-    }
-
-    fn at(source: &str, language: &str, path: &str) -> Vec<(usize, usize, String)> {
-        rule(Vec::new(), source, language, path)
-    }
-
-    fn rule(
-        allow: Vec<std::path::PathBuf>,
-        source: &str,
-        language: &str,
-        path: &str,
-    ) -> Vec<(usize, usize, String)> {
-        let mut candidates: Vec<Candidate> = Vec::new();
-        StrayConstRule::new(allow).check(
-            SourceFile {
-                path,
-                language: language_profile(language).expect("a language straitjacket knows"),
-                text: source,
-            },
-            &mut candidates,
-        );
-        candidates
-            .into_iter()
-            .map(|candidate| {
-                (
-                    candidate.finding.location.line,
-                    candidate.finding.location.col,
-                    candidate.finding.matched,
-                )
-            })
-            .collect()
+    #[test]
+    fn every_supported_language_is_one_straitjacket_knows() {
+        for (id, _) in SUPPORTED {
+            assert!(
+                crate::language::language_profile(id).is_some(),
+                "{id} is not a language straitjacket has a profile for"
+            );
+        }
     }
 
     #[test]
-    fn flags_a_keyword_declaration_and_points_at_the_name() {
-        let hits = findings("const MAX_SIZE: u8 = 3;\n", "rust");
-
-        assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0].0, 1);
-        assert_eq!(hits[0].1, 7);
-        assert_eq!(hits[0].2, "MAX_SIZE");
+    fn every_supported_language_has_a_beamte_model() {
+        for (id, pack) in SUPPORTED {
+            assert!(
+                beamte::TestModel::for_language(id).is_some()
+                    || beamte::TestModel::for_language(pack).is_some(),
+                "{id} maps to no beamte model"
+            );
+        }
     }
 
     #[test]
-    fn flags_a_declaration_behind_a_type_and_a_pointer() {
-        assert_eq!(
-            findings("static final int MAX_SIZE = 3;\n", "java")[0].2,
-            "MAX_SIZE"
-        );
-        assert_eq!(
-            findings("static const char *DEFAULT_NAME = \"x\";\n", "c")[0].2,
-            "DEFAULT_NAME"
-        );
-        assert_eq!(findings("#define MAX_RETRIES 5\n", "c")[0].2, "MAX_RETRIES");
+    fn the_prefilter_keeps_what_could_be_a_constant_and_drops_what_could_not() {
+        assert!(looks_like_a_constant("const MAX_SIZE = 3;"));
+        assert!(looks_like_a_constant("A_B"));
+        assert!(!looks_like_a_constant("let max_size = 3;"));
+        assert!(!looks_like_a_constant("fn main() {}"));
+        assert!(!looks_like_a_constant("PI"));
     }
 
     #[test]
-    fn a_use_is_not_a_declaration() {
-        assert!(findings("if size > MAX_SIZE { return; }\n", "rust").is_empty());
-        assert!(findings("foo(MAX_SIZE, OTHER_THING);\n", "rust").is_empty());
+    fn a_designated_file_is_designated_however_the_walk_spells_it() {
+        let rule = StrayConstRule::new(vec!["src/consts.rs".into(), "src/env/".into()]);
+
+        assert!(rule.designated("src/consts.rs"));
+        assert!(rule.designated("/repo/src/consts.rs"));
+        assert!(rule.designated("src/env/keys.rs"));
+        assert!(!rule.designated("src/main.rs"));
     }
 
     #[test]
-    fn a_single_word_name_is_left_alone() {
-        assert!(findings("const MAX: u8 = 3;\n", "rust").is_empty());
-        assert!(findings("const PI: f64 = 3.14;\n", "rust").is_empty());
-    }
-
-    #[test]
-    fn a_commented_out_or_quoted_declaration_is_not_one() {
-        assert!(findings("// const MAX_SIZE: u8 = 3;\n", "rust").is_empty());
-        assert!(findings("let s = \"const MAX_SIZE = 3\";\n", "rust").is_empty());
-        assert!(findings("/* const MAX_SIZE = 3 */\n", "rust").is_empty());
-    }
-
-    /// Rust spells a declaration with a keyword, so a bare `MAX_SIZE = 3`
-    /// there is a write to something declared elsewhere rather than a
-    /// declaration this rule could ask anyone to move.
-    #[test]
-    fn a_bare_assignment_declares_only_where_the_language_says_so() {
-        assert_eq!(findings("MAX_SIZE = 3\n", "python")[0].2, "MAX_SIZE");
-        assert_eq!(findings("MAX_SIZE = 3\n", "ruby")[0].2, "MAX_SIZE");
-        assert_eq!(findings("MAX_SIZE=3\n", "shell")[0].2, "MAX_SIZE");
-        assert!(findings("MAX_SIZE = 3;\n", "rust").is_empty());
-    }
-
-    #[test]
-    fn an_indented_assignment_is_a_member_rather_than_a_constant() {
-        let source = "class Colour(Enum):\n    RED_ONE = 1\n    GREEN_TWO = 2\n";
-
-        assert!(
-            findings(source, "python").is_empty(),
-            "an enum member cannot be moved to another file"
-        );
-    }
-
-    #[test]
-    fn go_declares_inside_an_indented_const_block() {
-        let hits = findings("const (\n\tMAX_SIZE = 100\n)\n", "go");
-
-        assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0].2, "MAX_SIZE");
-    }
-
-    #[test]
-    fn a_comparison_is_not_an_assignment() {
-        assert!(findings("MAX_SIZE == 3\n", "python").is_empty());
-        assert!(findings("MAX_SIZE != 3\n", "python").is_empty());
-        assert!(findings("MAX_SIZE >= 3\n", "python").is_empty());
-        assert!(findings("MAX_SIZE => 3\n", "ruby").is_empty());
-    }
-
-    #[test]
-    fn a_designated_file_may_declare_freely() {
-        let source = "const MAX_SIZE: u8 = 3;\n";
-
-        assert!(
-            rule(
-                vec!["src/config.rs".into()],
-                source,
-                "rust",
-                "src/config.rs"
-            )
-            .is_empty()
-        );
-        assert_eq!(
-            rule(vec!["src/config.rs".into()], source, "rust", "src/main.rs").len(),
-            1
-        );
-    }
-
-    #[test]
-    fn a_designated_directory_covers_what_is_under_it() {
-        let source = "const MAX_SIZE: u8 = 3;\n";
-
-        assert!(
-            rule(
-                vec!["src/consts/".into()],
-                source,
-                "rust",
-                "src/consts/a.rs"
-            )
-            .is_empty()
-        );
-    }
-
-    #[test]
-    fn several_declarations_on_one_line_are_reported_once_each() {
-        let hits = findings("const A_ONE: u8 = 1; const B_TWO: u8 = 2;\n", "rust");
-
-        assert_eq!(hits.len(), 2);
-        assert_eq!(hits[0].2, "A_ONE");
-        assert_eq!(hits[1].2, "B_TWO");
-    }
-
-    #[test]
-    fn a_python_docstring_full_of_declarations_is_prose() {
-        let source = "\"\"\"\nMAX_SIZE = 3\n\"\"\"\nx = 1\n";
-
-        assert!(findings(source, "python").is_empty());
+    fn the_key_is_the_one_the_registry_carries() {
+        assert_eq!(KEY.as_str(), "stray-const");
     }
 }
