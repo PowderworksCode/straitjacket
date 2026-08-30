@@ -33,6 +33,7 @@ installed version ever disagree.
 | `stray-todo` | on | deferred-work markers left in comments — `TODO`, `TBD`, `FIXME`, `WIP`. Do the work now, or record it in an issue the repository tracks. Exempt path prefixes with `todo-exclude`. |
 | `unused-marker` | on | a suppression marker that did not suppress anything — the finding it was written for is gone, so the marker is stale. Turn it off with `--no-fail-on-unused-markers`. |
 | `no-comments` | **opt-in** | every comment, in every language it knows (`//`, `/* */`, `#`, `--`, `<!-- -->`). See [no-comments mode](#no-comments-mode) below. |
+| `stray-const` | **opt-in** | `SCREAMING_SNAKE_CASE` constants **declared** outside the files named by `const-files` — a limit, a path, a key or a magic number named where it happens to be used rather than where the program keeps its decisions. Parses with a treebank grammar, so it can tell a declaration from a use. See [stray constants](#stray-constants) below. |
 | `test-quality` | **opt-in** | tests that weaken what they prove — currently a loop or a conditional in a test body. Parses the file with a treebank grammar, so it reads a test the way the language writes one: `#[test]`, `@Test`, `it(...)`, `TEST(...)`, `test "..."`. See [test quality](#test-quality) below. |
 
 ### `deep-nesting` and embedded DSLs
@@ -211,3 +212,76 @@ existing repository.
 | respect `.gitignore` | on | `--no-ignore` |
 | fail on unused markers | on | `--no-fail-on-unused-markers` |
 | fail on findings | on | `--no-fail` |
+
+## stray constants
+
+A constant is a decision the program has made: a limit, a retry count, a path,
+a key, a magic number somebody named. Scattered across the tree those decisions
+cannot be read as a set, nobody can tell which are still true, and the same one
+gets made twice under two names. `stray-const` reports a
+`SCREAMING_SNAKE_CASE` declaration anywhere but the files you designate:
+
+```sh
+straitjacket --stray-const
+```
+
+or in [`straitjacket.toml`](/reference/config-file):
+
+```toml
+stray-const = true
+const-files = ["src/consts.rs", "src/env.rs"]
+```
+
+`const-files` is `theme-files` for constants: a declaration inside one is what
+the rule is asking for, and everywhere else is an error. Enabling the rule
+without naming a file is refused rather than obeyed — every constant would be
+a finding with nowhere to move it, which is a configuration nobody means.
+
+**Declarations, not uses.** `MAX_SIZE` mentioned in an expression is the whole
+point of having a constant; only the line that introduces the name is a
+finding. A rule that flagged uses could not be satisfied.
+
+That distinction is the reason this rule parses. Telling a declaration from a
+use is a question about the tree, and answering it from text needs a table of
+declaration keywords per language — a parser written badly, which is what the
+first version of this rule was. The analysis is
+[beamte](https://github.com/PowderworksCode/beamte)'s `const-declaration`,
+which asks the node vocabulary instead:
+
+| shape | what the tree says | verdict |
+|---|---|---|
+| `MAX_SIZE = 3` | a binding | declared |
+| `const MAX_SIZE: u8 = 3` | a binding | declared |
+| `from settings import MAX_SIZE` | a binding, and a directive | imported, not declared |
+| `def f(MAX_SIZE)` | a binding, and a parameter | a parameter, not a constant |
+| `n > MAX_SIZE` | neither | a use |
+
+A name bound inside a function is a local — it cannot be moved to another
+file, so it is not reported. Because the rule reads the vocabulary rather than
+any language's syntax, there is no per-language table to drift: a constant is
+recognised the same way in every grammar.
+
+**It is opt-in for two reasons**, either enough alone. The grammar for a
+language is downloaded the first time a file in that language is scanned, so
+the rule reaches the network; and it has nothing to say until you name the
+files constants belong in, which is a decision no default can make. A file
+whose grammar cannot be fetched is reported as **not read** rather than
+passing quietly.
+
+### What counts as a constant
+
+A name of at least two words joined by underscores — `MAX_SIZE`,
+`DEFAULT_PATH`, `API_BASE_URL`. A single all-caps word is deliberately left
+alone: `PI`, `OK`, `HTTP`, a Go export, a C header guard and a type parameter
+are all spelled that way, and flagging them would bury the constants among
+them.
+
+Ten languages, being the ones treebank publishes a grammar for: Python, Ruby,
+Rust, Java, TypeScript, JavaScript, C, C++, Shell and Zig.
+
+One miss is worth naming. An enum member written as an assignment in a class
+body — Python's `RED_ONE = 1` inside `class Colour(Enum)` — is a binding
+outside any function and is reported, though it cannot be moved either.
+Telling an enum from a class needs its base class, which is a fact about a
+library rather than about the tree; name those files in `const-files`, or
+suppress with a marker.

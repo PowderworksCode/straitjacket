@@ -55,6 +55,8 @@ Every key mirrors a [CLI flag](/reference/cli) one-for-one, in
 | `test-rules` | list of [test rule](/reference/rules#test-quality) ids; unset runs all | — |
 | `test-quality` | boolean | `--test-quality` ([test quality](/reference/rules#test-quality)) |
 | `no-comments` | boolean | `--no-comments` ([no-comments mode](/reference/rules#no-comments-mode)) |
+| `stray-const` | boolean | `--stray-const` ([stray constants](/reference/rules#stray-constants)) |
+| `const-files` | list of files constants are declared in — required when `stray-const` is on | — |
 | `include-json` | boolean | `--include-json` |
 | `no-ignore` | boolean | `--no-ignore` |
 | `no-fail` | boolean | `--no-fail` |

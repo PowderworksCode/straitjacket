@@ -6,6 +6,43 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `stray-const`, an opt-in rule that reports `SCREAMING_SNAKE_CASE` constants
+  **declared** outside the files named by `const-files`. A constant is a
+  decision the program has made -- a limit, a path, a key, a magic number
+  somebody named -- and scattered across the tree those decisions cannot be
+  read as a set, so the same one gets made twice under two names.
+  `const-files` is `theme-files` for constants: a declaration inside one is
+  what the rule asks for, everywhere else is an error. Enable with
+  `stray-const = true` or `--stray-const`; enabling it without naming a file
+  is refused, because every constant would be a finding with nowhere to move
+  it.
+
+  The analysis is [beamte](https://github.com/PowderworksCode/beamte)'s
+  `const-declaration`, and it parses rather than matching text because the
+  whole content of the rule is the difference between declaring a name and
+  using one. Text cannot tell those apart without a table of declaration
+  keywords per language; the node vocabulary answers it in one form for every
+  grammar, so an import binds a name without declaring it, a parameter is not
+  a constant, a function's locals cannot be moved to another file, and a use
+  is not a binding at all. Ten languages, the ones treebank publishes a
+  grammar for. Opt-in twice over: the first scan of a language downloads its
+  grammar, and the rule has nothing to say until the files are named.
+
+### Changed
+
+- The pack cache moves to `src/pack.rs`, shared, so two rules meeting the same
+  language in one scan JIT its grammar once between them rather than each
+  keeping a copy.
+- `test-quality` renders instructions for the test-scoped rules only. beamte's
+  catalogue now holds rules it does not run, and advertising one would promise
+  a check `test-quality` never makes.
+- beamte 0.3: `Rule::property` and `Rule::citation` are `Option`, so a rule may
+  state a structural fact rather than restate a published argument.
+  `severity_of` maps a rule with no test property to a warning, since it makes
+  no claim that mapping is about.
+
 ## [0.2.0] - 2026-08-30
 
 ### Added

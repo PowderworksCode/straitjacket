@@ -22,6 +22,13 @@ pub struct FileConfig {
     pub theme_files: Option<Vec<String>>,
     pub max_nesting: Option<usize>,
     pub no_comments: Option<bool>,
+    /// Turn on `stray-const`, which reports SCREAMING_SNAKE_CASE constants
+    /// declared outside the files named by `const-files`.
+    pub stray_const: Option<bool>,
+    /// The files constants are declared in. `theme-files` for constants: a
+    /// declaration inside one is what the rule asks for, everywhere else it
+    /// is a finding.
+    pub const_files: Option<Vec<String>>,
     pub test_quality: Option<bool>,
     pub include_json: Option<bool>,
     pub no_ignore: Option<bool>,
@@ -55,6 +62,8 @@ pub struct Settings {
     pub max_nesting: usize,
     pub no_comments: bool,
     pub test_quality: bool,
+    pub stray_const: bool,
+    pub const_files: Vec<PathBuf>,
     pub include_json: bool,
     pub no_ignore: bool,
     pub no_fail: bool,
@@ -77,6 +86,8 @@ impl Default for Settings {
             max_nesting: DEFAULT_MAX_NESTING,
             no_comments: false,
             test_quality: false,
+            stray_const: false,
+            const_files: Vec::new(),
             include_json: false,
             no_ignore: false,
             no_fail: false,
@@ -125,6 +136,12 @@ impl Settings {
         }
         if let Some(value) = file.no_comments {
             self.no_comments = value;
+        }
+        if let Some(value) = file.stray_const {
+            self.stray_const = value;
+        }
+        if let Some(paths) = file.const_files {
+            self.const_files = paths.into_iter().map(PathBuf::from).collect();
         }
         if let Some(value) = file.test_quality {
             self.test_quality = value;
