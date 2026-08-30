@@ -6,7 +6,43 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-30
+
 ### Added
+
+- `test-quality`, opt-in, which flags tests that weaken what they prove --
+  today a loop or a conditional in a test body. It parses the file with a
+  [treebank](https://github.com/PowderworksCode/treebank) grammar rather than
+  matching text, and reads a test the way the language writes one: `#[test]`,
+  `@Test`, `it(...)`, `TEST(...)`, `test "..."`. Ten languages: python, ruby,
+  rust, java, typescript, javascript, c, c++, shell, zig.
+
+  The analysis is [beamte](https://github.com/PowderworksCode/beamte)'s, called
+  once per file; this crate does what beamte refuses to -- fetching a grammar,
+  parsing, severity, suppression, reporting. A rule added to beamte appears
+  here with no change to this one.
+
+  Opt-in because the first run downloads a grammar. Packs are fetched per
+  language and only once a file already looked like a test, so a Python
+  repository never downloads the Java grammar. A grammar that will not load
+  reports the file as **not read** rather than as clean: a scanner that goes
+  quiet when its parser breaks is how a broken parser becomes a green build.
+
+  Files are not chosen by path alone. Rust and Zig keep tests inside ordinary
+  source files, so a path rule would make this silent for both -- the failure
+  it exists to prevent.
+
+- `--test-quality`, and `test-quality` in `straitjacket.toml`, which turn the
+  rule on beside the nine default ones. Without it the only way to reach an
+  opt-in rule was `only`, which runs it and nothing else, leaving a scan with
+  the default rules or this one and never both. `no-comments` had a switch
+  and this did not.
+
+- `test-rules` in `straitjacket.toml`, naming which of beamte's rules run.
+  Unset runs all of them. An unknown name is refused when settings are read,
+  listing what beamte does have, because a typo that silently disables a rule
+  is the same quiet failure as a test that passes by being empty.
+
 
 - [Update Straitjacket](https://straitjacket.dev/guides/updating), a guide for
   the thing every installed tool eventually needs and this one never documented:
@@ -17,9 +53,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `beamte` and `treebank` are ordinary version dependencies. Both were git
+  references while the work that needed them was unreleased, and a versionless
+  dependency is what `cargo publish` refuses, which is why this crate could not
+  be published at all. beamte 0.1.0 and treebank 0.3.0 fix that, and the lockfile
+  now carries no `git+` source.
+
+
 - The Action's tag pins the scanner. `version` now defaults to the release the
   Action ref ships, read from the `Cargo.toml` beside `action.yml` in that ref,
-  rather than to `latest` -- so `@v0.1.3` runs v0.1.3 and a release published
+  rather than to `latest`, meaning `@v0.1.3` runs v0.1.3 and a release published
   afterwards cannot apply new rules to a branch that changed nothing. That is
   the update strategy this project wants: a bump is a line in a workflow, and
   the findings it turns up arrive in the pull request that bumps it. `latest`
@@ -36,6 +79,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `--var`, which the lockfile now takes.
 
 ### Fixed
+
+- `scripts/publish.sh --dry-run` verifies something. Its skip for a version
+  already on the registry ran before the dry run as well as before the upload,
+  so on every commit that did not bump the version the release gate reported
+  success having packaged nothing and compiled nothing. The skip now applies
+  only to `--execute`. `--help` had the matching defect, a hardcoded line range
+  that truncated once the header changed, and now reads the comment block.
+
+- The site and README say how many rules there are. Both said "nine of the ten"
+  and named `no-comments` as "the tenth", which stopped being true when
+  `test-quality` landed. `straitjacket --list-rules` is the authority: eleven
+  rules, nine on by default, `no-comments` and `test-quality` opt-in.
+
 
 - The site and the README name the current release. They said `v0.1.1`, two
   releases after that stopped being true, so the CI guide told readers to pin
@@ -75,7 +131,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   points at the `token` input when rate limiting is the cause.
 - `action.yml` loads again. The `token` input's description explained itself
   with a live `${{ github.token }}`, and GitHub evaluates every expression it
-  finds in a manifest, descriptions included -- so the sentence documenting the
+  finds in a manifest, descriptions included, and the sentence documenting the
   token stopped the action loading for everyone on `@main`. CI now uses the
   action on every change, because nothing else here reads that file.
 

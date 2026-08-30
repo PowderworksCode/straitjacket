@@ -52,6 +52,7 @@ impl Scanner {
                 let mut enabled = if only.is_empty() {
                     descriptor.default_enabled
                         || (descriptor.id == rules::NO_COMMENTS && settings.no_comments)
+                        || (descriptor.id == rules::TEST_QUALITY && settings.test_quality)
                 } else {
                     only.contains(&descriptor.id)
                 };

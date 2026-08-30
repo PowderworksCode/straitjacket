@@ -98,7 +98,8 @@ A test is a concrete input/output pair, so state the values directly rather
 than computing them, and split the cases into separate tests.
 
 ```sh
-straitjacket --only test-quality
+straitjacket --test-quality       # beside the nine default rules
+straitjacket --only test-quality  # on its own
 ```
 
 or in [`straitjacket.toml`](/reference/config-file):

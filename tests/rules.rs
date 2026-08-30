@@ -177,6 +177,38 @@ fn no_comments_is_opt_in_and_tracks_strings() {
 }
 
 #[test]
+fn test_quality_switches_on_beside_the_default_rules() {
+    let settings = Settings {
+        test_quality: true,
+        ..Settings::default()
+    };
+    let enabled: Vec<_> = Scanner::new(&settings)
+        .unwrap()
+        .enabled_descriptors()
+        .into_iter()
+        .map(|descriptor| descriptor.id)
+        .collect();
+    assert!(
+        enabled.contains(&RuleKey::new("test-quality")),
+        "the switch must reach the scanner; without it the rule is reachable \
+         only through `only`, which runs it and nothing else: {enabled:?}"
+    );
+    assert!(
+        enabled.contains(&RuleKey::new("color")),
+        "turning it on must not turn the default rules off, which is what \
+         reaching it through `only` does: {enabled:?}"
+    );
+    assert!(
+        !Scanner::new(&Settings::default())
+            .unwrap()
+            .enabled_descriptors()
+            .iter()
+            .any(|descriptor| descriptor.id == RuleKey::new("test-quality")),
+        "it is opt-in, so a default scan must not run it"
+    );
+}
+
+#[test]
 fn suppression_is_scoped_and_dead_markers_fail() {
     let scanner = scanner(&["color", "motion"]);
     let result = scanner.scan(
