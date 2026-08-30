@@ -23,19 +23,18 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: PowderworksCode/straitjacket@v{{version}}
-        with:
-          version: "v{{version}}"   # pin the scanner, not just the Action wrapper
 ```
 
 That's the whole thing. No toolchain to set up, no Node — the Action fetches a
 single static binary and runs it.
 
-> **Pin the full version — both halves.**
-> The `@v{{version}}` on the `uses:` line pins the Action *wrapper*; the `version:` input
-> pins the *scanner binary* it downloads. Leave `version` unset and it defaults to
-> `latest`, so a new Straitjacket release applies its new rules to your repo the
-> moment it ships — failing an unrelated PR on a rule you never opted into. Pin
-> both to the same tag and bump deliberately. The newest release is on the
+> **The tag is the pin.**
+> `@v{{version}}` selects the scanner as well as the Action wrapper, so this workflow
+> runs Straitjacket v{{version}} until you change that line — a release published
+> tomorrow cannot apply its new rules to a branch that changed nothing. Moving
+> to a newer scanner is a bump of that tag, and the findings it turns up land in
+> the pull request that bumps it. See [Update Straitjacket](/guides/updating).
+> The newest release is on the
 > [Releases page](https://github.com/PowderworksCode/straitjacket/releases).
 
 ## Configure it
@@ -55,7 +54,7 @@ Pass typed fields rather than a raw argument string. Each maps to a CLI flag:
           include-json: "false"
           no-ignore: "false"
           fail-on-findings: "true"
-          version: "v{{version}}"        # pin the scanner
+          version: "latest"        # override the tag; see Update Straitjacket
 ```
 
 `paths`, `only`, and `skip` accept either a single line or a YAML block list, so
@@ -150,9 +149,12 @@ artifact from one run.
 There's no runtime dependency, so any CI works — install the binary and run it:
 
 ```sh
-curl -fsSL https://straitjacket.dev/install | sh
+curl -fsSL https://straitjacket.dev/install | STRAITJACKET_VERSION=v{{version}} sh
 straitjacket
 ```
 
 The command exits non-zero on any error-level finding, which fails the job on
-every CI system that respects exit codes.
+every CI system that respects exit codes. `STRAITJACKET_VERSION` is doing the
+same job the Action's tag does here: without it the job takes whatever the
+latest release is on the morning it runs, and updating becomes something that
+happens to you rather than something you did.

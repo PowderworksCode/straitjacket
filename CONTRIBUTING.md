@@ -110,11 +110,16 @@ has already had once.
 
 Maintainers only. Releases are tag-driven: update `CHANGELOG.md` and the version
 in `Cargo.toml`, pin that version in the README's Action snippet, tag, and let
-`release.yml` build the archives and publish the crate. The site takes the
-version from `Cargo.toml` when it builds, so its pages need no editing; the
-README is rendered by GitHub rather than by the generator, which is why it is
-the one place still written by hand, and why `docs.yml` checks it. `scripts/publish.sh --dry-run` runs on every CI build, so the publish path
-is exercised long before a tag depends on it.
+`release.yml` build the archives and publish the crate. That version in
+`Cargo.toml` is also the release the Action installs when a workflow does not
+name one, so between the bump commit and its tag `@main` names a release that
+does not exist yet; the Action falls back to the latest release with a warning
+rather than failing, which is what keeps the `action` CI job green in that
+window. The site takes the version from `Cargo.toml` when it builds, so its
+pages need no editing; the README is rendered by GitHub rather than by the
+generator, which is why it is the one place still written by hand, and why
+`docs.yml` checks it. `scripts/publish.sh --dry-run` runs on every CI build, so
+the publish path is exercised long before a tag depends on it.
 
 ## License
 

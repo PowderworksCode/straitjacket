@@ -11,9 +11,12 @@ branding:
 
 inputs:
   version:
-    description: Release tag to install, such as v0.1.0, or `latest`.
+    description: >-
+      Release tag to install, such as v0.1.0, or `latest` to track releases.
+      Left unset, this is the release the pinned Action ref ships, so the tag
+      on the `uses:` line selects the scanner as well as the wrapper.
     required: false
-    default: latest
+    default: ""
   paths:
     description: >-
       Files or directories to scan. Accepts one per line or several on one line.
@@ -105,13 +108,45 @@ runs:
         ACTION_PATH: ${{ github.action_path }}
       run: |
         set -eu
-        if [ "$VERSION" != "latest" ]; then
-          export STRAITJACKET_VERSION="$VERSION"
+
+        # An unset `version` means the release this Action ref *is*, read from
+        # the Cargo.toml sitting beside this file in the checked-out ref. That
+        # makes the tag on the `uses:` line pin the scanner as well as the
+        # wrapper: a workflow that changed nothing cannot be handed new rules
+        # by a release it never asked for, which for a gate is the difference
+        # between a red build somebody caused and one nobody did. `latest` is
+        # still available, spelled out.
+        from_ref=false
+        if [ -z "$VERSION" ]; then
+          VERSION="v$(sed -n 's/^version = "\(.*\)"$/\1/p' "${ACTION_PATH}/Cargo.toml" | head -n 1)"
+          from_ref=true
         fi
+
+        install() {
+          if [ "$1" = latest ]; then
+            unset STRAITJACKET_VERSION
+          else
+            export STRAITJACKET_VERSION="$1"
+          fi
+          sh "${ACTION_PATH}/scripts/install.sh"
+        }
+
+        # A ref that is not a release names a version nothing published: `@main`,
+        # a fork, or the window between the commit that bumps Cargo.toml and the
+        # tag that releases it. Those refs keep working, on the latest release,
+        # and the warning says which scanner actually ran. A version the
+        # workflow asked for by name never falls back -- it was chosen on
+        # purpose, and silently running a different scanner is worse than
+        # failing to run one.
+        #
         # Failing to install is not the same as finding something, and at a
         # glance in the checks list the two look identical: both are a red job
         # whose log ends in `exit code 1`. Say which one this is.
-        if ! sh "${ACTION_PATH}/scripts/install.sh"; then
+        if install "$VERSION"; then
+          :
+        elif [ "$from_ref" = true ] && install latest; then
+          echo "::warning title=Straitjacket ${VERSION} is not a published release::This Action ref does not correspond to a release, so the latest one was installed instead. Pin the \`uses:\` line to a release tag, or set the \`version\` input, for a scan that does not move." >&2
+        else
           echo "::error title=Straitjacket could not be installed::The scan did not run. This is an installation failure, not a finding -- see the log above, and set the action's \`token\` input if it mentions rate limiting." >&2
           exit 1
         fi

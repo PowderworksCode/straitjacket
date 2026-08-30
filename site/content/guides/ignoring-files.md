@@ -1,7 +1,7 @@
 ---
 title: Exclude big or generated files
 description: Keep generated output, vendored code, and oversized files from tripping Straitjacket.
-order: 3
+order: 4
 ---
 
 Generated and vendored files aren't written by a human and shouldn't be judged

@@ -18,15 +18,16 @@ steps:
   - uses: actions/checkout@v5
   - uses: PowderworksCode/straitjacket@v{{version}}
     with:
-      version: "v{{version}}"        # pin the scanner too — see the note below
       paths: "src tests"
       skip: "motion"
 ```
 
-Pin the **full version** on both the `uses:` line (`@v{{version}}`, the Action wrapper)
-and the `version:` input (`v{{version}}`, the scanner binary). Left unset, `version`
-defaults to `latest`, so a new release applies its new rules the moment it ships —
-failing an unrelated PR on a rule you never opted into. Bump both, deliberately.
+The tag on the `uses:` line is the pin. The Action installs the release it is —
+`@v{{version}}` runs Straitjacket v{{version}} — so a release published later cannot apply
+its new rules to a branch that changed nothing, and moving to a newer scanner is
+a bump of that tag. The `version` input overrides it, and is only worth setting
+to take a different release than the wrapper or to track `latest` on purpose.
+See [Update Straitjacket](/guides/updating).
 
 ## Inputs
 
@@ -37,7 +38,7 @@ back to Straitjacket's own defaults, including a committed
 
 | input | default | meaning |
 |-------|---------|---------|
-| `version` | `latest` | Release tag to install, such as `v{{version}}`. **Pin a tag**; `latest` floats and applies new rules the moment they ship. |
+| `version` | the Action ref | Release tag to install, such as `v{{version}}`, or `latest` to track releases. Unset, it is the release this Action ref ships. |
 | `paths` | `.` | Files or directories to scan. |
 | `only` | none | Run only these rules. |
 | `skip` | none | Disable these rules. |
@@ -112,7 +113,9 @@ before the upload runs and you get the gate without the annotations. See
 
 - The Action is a **composite** action — it fetches a single static binary, so
   there's no toolchain or Node to set up.
-- Pin `version` to a release tag for reproducible CI rather than tracking
-  `latest`.
+- The `uses:` tag pins the scanner, so `version` needs setting only to depart
+  from it. A ref that is not a release — `@main`, or a version bumped before its
+  tag is pushed — installs the latest release and says so in a warning
+  annotation.
 - Set `fail-on-findings: "false"` to report findings without failing the build
   while you adopt Straitjacket.
