@@ -51,10 +51,7 @@ unic-emoji-char = "0.9"
 # file in it. Only the acquisition half is taken -- `fetch-bytes` is treebank's
 # manifest, sha256 check and content-addressed cache with no wasm engine
 # attached, so it does not stand up a second engine beside wasmer above.
-# Still a git reference rather than a version: the published 0.2.1 predates
-# `fetch-bytes` and carries wasmtime, so it cannot build the musl targets at
-# all. treebank 0.3.0 is what this becomes a version dependency on.
-treebank = { git = "https://github.com/PowderworksCode/treebank", default-features = false, features = ["fetch-bytes"] }
+treebank = { version = "0.3", default-features = false, features = ["fetch-bytes"] }
 
 [dev-dependencies]
 tempfile = "3"
