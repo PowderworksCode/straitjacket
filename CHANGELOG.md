@@ -6,6 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `stray-const`, an opt-in rule that reports `SCREAMING_SNAKE_CASE` constants
+  declared outside the files named by `const-files`. A constant is a decision
+  the program has made -- a limit, a path, a key, a magic number somebody
+  named -- and scattered across the tree those decisions cannot be read as a
+  set, so the same one gets made twice under two names. `const-files` is
+  `theme-files` for constants: a declaration inside one is what the rule asks
+  for, everywhere else is an error. Enable with `stray-const = true` or
+  `--stray-const`; enabling it without naming a file is refused, because every
+  constant would be a finding with nowhere to move it.
+- The rule needs no grammar, so unlike `test-quality` it covers
+  all eighteen languages straitjacket calls structured code and never reaches
+  the network. It reports declarations rather than uses -- referencing a
+  constant is the point of having one -- and it reads code rather than text,
+  so a declaration commented out or quoted inside a string is not one. A bare
+  `NAME = value` counts as a declaration only in the languages that spell it
+  that way, and in Python, Ruby and Shell only at the left margin, which is
+  what keeps every `enum` member from being a finding.
+
+### Changed
+
+- `rules::comments` now yields the file's comments and a code-only view from
+  one traversal (`comments::code`), rather than only the comments. Masking
+  preserves byte offsets, so a column found in the masked line is the column
+  in the real one. One lexer answers where the code stops and the prose
+  starts; answering it in two places is how the two answers come to disagree.
+
 ## [0.2.0] - 2026-08-30
 
 ### Added

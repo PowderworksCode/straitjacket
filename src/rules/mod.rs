@@ -9,6 +9,7 @@ mod key;
 mod motion;
 mod no_comments;
 mod regex_rule;
+mod stray_const;
 mod stray_todo;
 mod test_quality;
 mod unused_marker;
@@ -136,6 +137,23 @@ pub fn resolve(names: &[String]) -> anyhow::Result<Vec<RuleKey>> {
 /// Straitjacket carries one rule key for all of them, so these names never
 /// reach [`resolve`] and would otherwise be accepted silently -- a typo in
 /// `test-rules` would quietly turn a rule off rather than say so.
+/// `stray-const` with nowhere to put a constant.
+///
+/// Every constant in the repository would be a finding and none of them could
+/// be fixed, which is a configuration nobody means. `deny_unknown_fields`
+/// cannot catch this one -- both keys are spelled right -- so it is caught
+/// here, where the rule is known to be running.
+pub fn check_const_files(enabled: bool, settings: &Settings) -> anyhow::Result<()> {
+    if enabled && settings.const_files.is_empty() {
+        bail!(
+            "`stray-const` is on but `const-files` names no file, so every \
+             constant would be a finding with nowhere to move it. Name the \
+             file(s) constants belong in."
+        );
+    }
+    Ok(())
+}
+
 pub fn resolve_test_rules(names: &[String]) -> anyhow::Result<()> {
     let unknown: Vec<&str> = names
         .iter()
@@ -157,5 +175,6 @@ pub fn resolve_test_rules(names: &[String]) -> anyhow::Result<()> {
 }
 
 pub use no_comments::KEY as NO_COMMENTS;
+pub use stray_const::KEY as STRAY_CONST;
 pub use test_quality::KEY as TEST_QUALITY;
 pub use unused_marker::{KEY as UNUSED_MARKER, descriptor as unused_marker_descriptor};

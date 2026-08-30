@@ -33,6 +33,7 @@ installed version ever disagree.
 | `stray-todo` | on | deferred-work markers left in comments — `TODO`, `TBD`, `FIXME`, `WIP`. Do the work now, or record it in an issue the repository tracks. Exempt path prefixes with `todo-exclude`. |
 | `unused-marker` | on | a suppression marker that did not suppress anything — the finding it was written for is gone, so the marker is stale. Turn it off with `--no-fail-on-unused-markers`. |
 | `no-comments` | **opt-in** | every comment, in every language it knows (`//`, `/* */`, `#`, `--`, `<!-- -->`). See [no-comments mode](#no-comments-mode) below. |
+| `stray-const` | **opt-in** | `SCREAMING_SNAKE_CASE` constants declared outside the files named by `const-files` — a limit, a path, a key or a magic number named where it happens to be used rather than where the program keeps its decisions. Needs no grammar, so it covers every structured language. See [stray constants](#stray-constants) below. |
 | `test-quality` | **opt-in** | tests that weaken what they prove — currently a loop or a conditional in a test body. Parses the file with a treebank grammar, so it reads a test the way the language writes one: `#[test]`, `@Test`, `it(...)`, `TEST(...)`, `test "..."`. See [test quality](#test-quality) below. |
 
 ### `deep-nesting` and embedded DSLs
@@ -211,3 +212,67 @@ existing repository.
 | respect `.gitignore` | on | `--no-ignore` |
 | fail on unused markers | on | `--no-fail-on-unused-markers` |
 | fail on findings | on | `--no-fail` |
+
+## stray constants
+
+A constant is a decision the program has made: a limit, a retry count, a path,
+a key, a magic number somebody named. Scattered across the tree those decisions
+cannot be read as a set, nobody can tell which are still true, and the same one
+gets made twice under two names. `stray-const` reports a
+`SCREAMING_SNAKE_CASE` declaration anywhere but the files you designate:
+
+```sh
+straitjacket --stray-const
+```
+
+or in [`straitjacket.toml`](/reference/config-file):
+
+```toml
+stray-const = true
+const-files = ["src/consts.rs", "src/env.rs"]
+```
+
+`const-files` is `theme-files` for constants: a declaration inside one is what
+the rule is asking for, and everywhere else is an error. Enabling the rule
+without naming a file is refused rather than obeyed — every constant would be
+a finding with nowhere to move it, which is a configuration nobody means.
+
+**Declarations, not uses.** `MAX_SIZE` mentioned in an expression is the whole
+point of having a constant; only the line that introduces the name is a
+finding. A rule that flagged uses could not be satisfied.
+
+**No grammar, so every structured language.** Unlike
+[`test-quality`](#test-quality), this rule reads declaration syntax rather
+than a parse tree, which means all eighteen languages straitjacket calls
+structured code, no download, and no network. It is opt-in only because designating the files is a decision no
+default can make.
+
+It reads code, not text: a declaration that is commented out or quoted inside
+a string is not a declaration, and those are the two places source most often
+appears without being code.
+
+### What counts as a constant
+
+A name of at least two words joined by underscores — `MAX_SIZE`,
+`DEFAULT_PATH`, `API_BASE_URL`. A single all-caps word is deliberately left
+alone: `PI`, `OK`, `HTTP`, a Go export, a C header guard and a type parameter
+are all spelled that way, and flagging them would bury the constants among
+them.
+
+What declares one depends on the language:
+
+| shape | looks like | languages |
+|---|---|---|
+| a keyword | `const MAX_SIZE`, `static final int MAX_SIZE`, `const val MAX_SIZE` | Rust, C, C++, C#, Java, Kotlin, JS, TS, Swift, Scala, PHP, Zig, Go |
+| a preprocessor directive | `#define MAX_RETRIES 5` | C, C++ |
+| a bare assignment at the left margin | `MAX_SIZE = 3`, `MAX_SIZE=3` | Python, Ruby, Shell |
+| a bare assignment at any depth | `const (` … `MAX_SIZE = 100` … `)` | Go |
+
+The last two rows are why an **enum member is not a finding**: indented
+`RED_ONE = 1` inside a Python `class Colour(Enum)` or a C `enum` body is not a
+constant anyone could move to another file, so only the left margin counts in
+the languages that declare by assignment.
+
+Two misses are worth naming. A constant whose name is built at run time is
+invisible, as is PHP's `define('MAX_SIZE', 3)`, where the name lives inside a
+string this rule has deliberately blanked.

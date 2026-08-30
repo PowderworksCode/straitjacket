@@ -52,6 +52,9 @@ struct Cli {
 
     #[arg(long, help = "Enable the opt-in `no-comments` rule")]
     no_comments: bool,
+
+    #[arg(long, help = "Enable the opt-in `stray-const` rule")]
+    stray_const: bool,
     #[arg(long, help = "Enable the opt-in `test-quality` rule")]
     test_quality: bool,
 
@@ -333,6 +336,7 @@ fn resolve(cli: &Cli) -> anyhow::Result<Settings> {
         settings.max_nesting = value;
     }
     settings.no_comments |= cli.no_comments;
+    settings.stray_const |= cli.stray_const;
     settings.test_quality |= cli.test_quality;
     settings.include_json |= cli.include_json;
     settings.no_ignore |= cli.no_ignore;

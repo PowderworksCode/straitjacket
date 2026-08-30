@@ -43,6 +43,11 @@
       "default_enabled": false
     },
     {
+      "id": "stray-const",
+      "summary": "a constant is declared outside the designated constant files",
+      "default_enabled": false
+    },
+    {
       "id": "stray-todo",
       "summary": "deferred-work marker left in a comment",
       "default_enabled": true
