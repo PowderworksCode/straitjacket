@@ -34,11 +34,9 @@ wasmer = { version = "7", default-features = false, features = ["sys", "cranelif
 # `pure` selects the Rust implementation instead, and naming blake3 here is what
 # unifies that feature across the whole graph.
 blake3 = { version = "1", default-features = false, features = ["pure"] }
-# Pinned to the branch carrying the detection work until that PR merges, at
-# which point this goes back to the default branch. Without it a test is a
-# name prefix and nothing else, so rust, java, typescript and c++ have no
-# tests at all as far as the rules are concerned.
-beamte = { git = "https://github.com/PowderworksCode/beamte", branch = "claude/test-quality-checker-j5whfd" }
+# Not on crates.io, so it is a git dependency; the detection work it needs has
+# merged, so this tracks the default branch rather than a pin.
+beamte = { git = "https://github.com/PowderworksCode/beamte" }
 clap = { version = "4", features = ["derive"] }
 ignore = "0.4"
 inventory = "0.3"
