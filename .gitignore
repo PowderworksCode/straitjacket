@@ -1,3 +1,7 @@
 # any Cargo target directory, at any depth, so a nested workspace is covered
 target/
 
+
+# Vale downloads its style packages here (`vale sync`); they are third-party
+# content, not ours, and the linter fetches them in CI.
+.vale/styles/

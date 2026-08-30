@@ -59,7 +59,7 @@ would help a future agent. Keep temporary plans and task-specific notes out.
   token is present, because the plain release download URL redirects to another
   host and curl drops the credential across the hop. Without that, the script
   cannot install from a private repository at all.
-- Updating is re-running the installer. There is no `self update` subcommand and
+- Updating is re-running the installer. It has no `self update` subcommand and
   no version check: the installer already resolves the latest release, verifies
   it, and replaces the binary by rename, and the alternative is a CI gate that
   makes network requests of its own. Adding one would mean an HTTP client, TLS,
@@ -77,7 +77,7 @@ would help a future agent. Keep temporary plans and task-specific notes out.
   explicitly requested `version` never falls back: it was chosen on purpose.
 - `scripts/install.sh` is **fleet-owned**, from
   `conf/.ordnung/managed/publishing/rust/install.sh` with `{{name}}`,
-  `{{NAME}}`, `{{repo}}` and `{{website}}` substituted. So is
+  `{{NAME}}`, `{{repo}}` and `{{website}}` substituted, as are
   `.github/workflows/release.yml`, `install-smoke.yml` and `.cargo/config.toml`.
   Improving the installer — having it report the version it replaced, say — is
   an edit in `conf`, and doing it here is drift the next sync overwrites.
@@ -104,8 +104,8 @@ would help a future agent. Keep temporary plans and task-specific notes out.
   reviewer goes if a publish should need a human first.
 - The `crate` job in the release workflow publishes with **trusted
   publishing**: crates.io mints a token over OIDC that lives under an hour and
-  the action revokes it at the end. There is no registry token stored in this
-  repository, and there should never be one.
+  the action revokes it at the end. No registry token is stored in this
+  repository, and none should ever be.
 - crates.io scopes that trust to this repository **and this workflow filename**.
   Renaming `release.yml` breaks publishing until the trusted publisher is
   updated on crates.io to match.
