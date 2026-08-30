@@ -160,8 +160,11 @@ describe("rendered titles", () => {
       expect(title).not.toContain("undefined");
       expect(heading).not.toBe("");
 
-      if (overrides.has(url)) {
-        expect(title).toBe(overrides.get(url));
+      // Read once: has() does not narrow what get() returns, and the tab a
+      // page asked for is the thing being asserted either way.
+      const declared = overrides.get(url);
+      if (declared !== undefined) {
+        expect(title).toBe(declared);
         return;
       }
       const [name, ...rest] = title.split(" — ");
