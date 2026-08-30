@@ -2,8 +2,11 @@
 # The local gate: what CI would say about this tree, said before the commit
 # lands. Bypass with `git commit --no-verify`.
 #
-# Fleet-managed by conf (.ordnung/managed/githooks/pre-commit).
+# Fleet-managed by conf (.ordnung/managed/githooks/pre-commit): it replaces the
+# `ordnung check` hook Ordnung's `recommended` tier ships.
 set -eu
 
+# No path argument: a positional overrides the `paths` a repository set in its
+# own straitjacket.toml, and a hook has no business overruling that.
 hooks_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-exec "$hooks_dir/run-straitjacket" .
+exec "$hooks_dir/run-straitjacket"

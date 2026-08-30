@@ -4,6 +4,10 @@ description: Why Straitjacket exists, and the personal taste it encodes into det
 order: 1
 ---
 
+<!-- vale off -->
+<!-- Signed, first-person writing. The prose linter grades documentation,
+     where "very" and "hopefully" are padding; here they are a voice. -->
+
 Straitjacket started life as a series of per-repo `lint-*` scripts, written
 because I got annoyed with the way Claude kept messing with the design of the interface, as
 well as with the kinds of code and text it would output. I'd written versions of
@@ -39,3 +43,5 @@ other signs. Not trying to get too fancy with it.
 Straitjacket has become an exercise in me encoding as much of my personal tastes
 as I can into deterministic checkers I can run across LLM output, hopefully saving
 me the trouble of catching each one myself.
+
+<!-- vale on -->

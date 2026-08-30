@@ -44,7 +44,7 @@ update; it installs over the copy that is there. In CI, the bundled Action
 installs the binary and scans the checked-out repository:
 
 ```yaml
-- uses: PowderworksCode/straitjacket@v0.1.3
+- uses: PowderworksCode/straitjacket@v0.2.0
 ```
 
 The tag pins the scanner, not just the Action wrapper, so a release published

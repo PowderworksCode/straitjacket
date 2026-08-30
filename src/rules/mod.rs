@@ -175,4 +175,5 @@ pub fn resolve_test_rules(names: &[String]) -> anyhow::Result<()> {
 
 pub use env_vars::KEY as ENV_VARS;
 pub use no_comments::KEY as NO_COMMENTS;
+pub use test_quality::KEY as TEST_QUALITY;
 pub use unused_marker::{KEY as UNUSED_MARKER, descriptor as unused_marker_descriptor};

@@ -3,7 +3,7 @@
 # applies the same rule to the commit subject, so a bad message fails here
 # rather than after a push. Bypass with `git commit --no-verify`.
 #
-# Fleet-managed by conf (.ordnung/managed/githooks/commit-msg): edit it there.
+# Distributed by Ordnung's `recommended` tier: edit it there, not here.
 msg_file="$1"
 
 # First non-blank, non-comment line is the subject.

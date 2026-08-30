@@ -3,7 +3,7 @@
 Committed Git hooks that run the fleet's gate locally, before a commit lands,
 so a failure surfaces here rather than after a push.
 
-Fleet-managed by [conf](https://github.com/PowderworksCode/conf); edit them
+Distributed by [Ordnung](https://ordnung.dev)'s `recommended` tier; edit them
 there, not here — a local change is drift the next sync reports.
 
 ## Activate

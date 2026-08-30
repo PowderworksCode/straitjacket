@@ -53,6 +53,7 @@ impl Scanner {
                     descriptor.default_enabled
                         || (descriptor.id == rules::NO_COMMENTS && settings.no_comments)
                         || (descriptor.id == rules::ENV_VARS && settings.env_vars)
+                        || (descriptor.id == rules::TEST_QUALITY && settings.test_quality)
                 } else {
                     only.contains(&descriptor.id)
                 };

@@ -28,7 +28,7 @@ use crate::language::LanguageProfile;
 use crate::rule::{Candidate, FileRule, RuleDescriptor, RuleKey, SourceFile};
 use crate::rules::{RuleRegistration, beamte_findings};
 
-const KEY: RuleKey = RuleKey::new("test-quality");
+pub const KEY: RuleKey = RuleKey::new("test-quality");
 
 /// Off unless a configuration asks for it.
 ///

@@ -22,6 +22,7 @@ pub struct FileConfig {
     pub theme_files: Option<Vec<String>>,
     pub max_nesting: Option<usize>,
     pub no_comments: Option<bool>,
+    pub test_quality: Option<bool>,
     pub include_json: Option<bool>,
     pub no_ignore: Option<bool>,
     pub no_fail: Option<bool>,
@@ -60,6 +61,7 @@ pub struct Settings {
     pub theme_files: Vec<PathBuf>,
     pub max_nesting: usize,
     pub no_comments: bool,
+    pub test_quality: bool,
     pub include_json: bool,
     pub no_ignore: bool,
     pub no_fail: bool,
@@ -83,6 +85,7 @@ impl Default for Settings {
             theme_files: Vec::new(),
             max_nesting: DEFAULT_MAX_NESTING,
             no_comments: false,
+            test_quality: false,
             include_json: false,
             no_ignore: false,
             no_fail: false,
@@ -139,6 +142,9 @@ impl Settings {
         }
         if let Some(value) = file.no_comments {
             self.no_comments = value;
+        }
+        if let Some(value) = file.test_quality {
+            self.test_quality = value;
         }
         if let Some(value) = file.include_json {
             self.include_json = value;
