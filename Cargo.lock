@@ -151,10 +151,11 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
 name = "beamte"
-version = "0.0.0"
-source = "git+https://github.com/PowderworksCode/beamte#db54926f0ab4935122c88a2f28fa5bcf7f8db6b6"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d369373b6cfa7fd9d2e8c8716ff29a31b111aabdb3ecaf26d07d60b218df553b"
 dependencies = [
- "treebank 0.2.1",
+ "treebank",
 ]
 
 [[package]]
@@ -2417,7 +2418,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "toml",
- "treebank 0.3.0",
+ "treebank",
  "unic-emoji-char",
  "wasmer",
 ]
@@ -2658,17 +2659,6 @@ dependencies = [
  "thread_local",
  "tracing",
  "tracing-core",
-]
-
-[[package]]
-name = "treebank"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "077fc2b86fec8e71139eea0de5ab8c75249dc9fd9cb62e71db4fbc2fd959773e"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
 ]
 
 [[package]]

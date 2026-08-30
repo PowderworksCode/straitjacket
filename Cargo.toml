@@ -34,9 +34,7 @@ wasmer = { version = "7", default-features = false, features = ["sys", "cranelif
 # `pure` selects the Rust implementation instead, and naming blake3 here is what
 # unifies that feature across the whole graph.
 blake3 = { version = "1", default-features = false, features = ["pure"] }
-# Not on crates.io, so it is a git dependency; the detection work it needs has
-# merged, so this tracks the default branch rather than a pin.
-beamte = { git = "https://github.com/PowderworksCode/beamte" }
+beamte = "0.1"
 clap = { version = "4", features = ["derive"] }
 ignore = "0.4"
 inventory = "0.3"
