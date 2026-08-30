@@ -5,7 +5,7 @@
     "": {
       "name": "straitjacket-site",
       "dependencies": {
-        "@powderworks/docs": "0.3.0",
+        "@powderworks/docs": "0.3.1",
       },
       "devDependencies": {
         "@biomejs/biome": "2.5.11",
@@ -184,7 +184,7 @@
 
     "@poppinss/exception": ["@poppinss/exception@1.2.3", "", {}, "sha512-dCED+QRChTVatE9ibtoaxc+WkdzOSjYTKi/+uacHWIsfodVfpsueo3+DKpgU5Px8qXjgmXkSvhXvSCz3fnP9lw=="],
 
-    "@powderworks/docs": ["@powderworks/docs@0.3.0", "", { "dependencies": { "highlight.js": "^11.12.0", "marked": "^16.4.1", "pagefind": "^1.5.2", "smol-toml": "^1.8.0" }, "bin": { "powderworks-docs": "src/cli.mjs" } }, "sha512-A2vRBvEHpdf9ubHORCPKUUcY2P7ZsEKkT16QHK4gqQCUPbmYY5ZdhmgxKA6Mug007J47o3aT2rPO+uM5scNcCQ=="],
+    "@powderworks/docs": ["@powderworks/docs@0.3.1", "", { "dependencies": { "highlight.js": "^11.12.0", "marked": "^16.4.1", "pagefind": "^1.5.2", "smol-toml": "^1.8.0" }, "bin": { "powderworks-docs": "src/cli.mjs" } }, "sha512-eXHe/K25ge62bQh+rvxhl+owEAAECFY3zffyKytCFu1IQqC9ujw7mESv9BkBjVOB6ZOWjBJX6SNgiyW8zBdtwQ=="],
 
     "@sindresorhus/is": ["@sindresorhus/is@7.2.0", "", {}, "sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw=="],
 
