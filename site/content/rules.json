@@ -48,6 +48,11 @@
       "default_enabled": true
     },
     {
+      "id": "test-quality",
+      "summary": "a test is written in a way that weakens what it proves",
+      "default_enabled": false
+    },
+    {
       "id": "unused-marker",
       "summary": "suppression marker did not suppress a finding",
       "default_enabled": true

@@ -34,7 +34,11 @@ wasmer = { version = "7", default-features = false, features = ["sys", "cranelif
 # `pure` selects the Rust implementation instead, and naming blake3 here is what
 # unifies that feature across the whole graph.
 blake3 = { version = "1", default-features = false, features = ["pure"] }
-beamte = { git = "https://github.com/PowderworksCode/beamte" }
+# Pinned to the branch carrying the detection work until that PR merges, at
+# which point this goes back to the default branch. Without it a test is a
+# name prefix and nothing else, so rust, java, typescript and c++ have no
+# tests at all as far as the rules are concerned.
+beamte = { git = "https://github.com/PowderworksCode/beamte", branch = "claude/test-quality-checker-j5whfd" }
 clap = { version = "4", features = ["derive"] }
 ignore = "0.4"
 inventory = "0.3"
@@ -44,15 +48,20 @@ serde_json = "1"
 toml = "1.1"
 unic-emoji-char = "0.9"
 
+# Packs come from here, and now at scan time rather than only in the tests:
+# `test-quality` fetches the grammar for a language when it first meets a test
+# file in it. Only the acquisition half is taken -- `fetch-bytes` is treebank's
+# manifest, sha256 check and content-addressed cache with no wasm engine
+# attached, so it does not stand up a second engine beside wasmer above.
+# Still a git reference because the published 0.2.1 predates `fetch-bytes` and
+# carries wasmtime; it needs a release before this can be a version. Pinned to
+# the branch that swaps ring for graviola until that merges: with ring in the
+# tree, `cargo build --release --target aarch64-unknown-linux-musl` cannot run
+# at all, because ring's build.rs wants a musl cross compiler.
+treebank = { git = "https://github.com/PowderworksCode/treebank", branch = "claude/test-quality-checker-j5whfd", default-features = false, features = ["fetch-bytes"] }
+
 [dev-dependencies]
 tempfile = "3"
-# The tests need a real pack, and this is where packs come from. Only the
-# acquisition half is taken: `fetch-bytes` is treebank's manifest, sha256 check
-# and content-addressed cache with no wasm engine attached, so it does not
-# stand up a second engine beside the one above. A dev-dependency carrying no
-# version is dropped from the published manifest, so this git reference reaches
-# nobody installing straitjacket.
-treebank = { git = "https://github.com/PowderworksCode/treebank", default-features = false, features = ["fetch-bytes"] }
 
 [lints.rust]
 unused_must_use = "deny"

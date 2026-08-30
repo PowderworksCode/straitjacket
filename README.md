@@ -155,6 +155,7 @@ operational failure — so a later step can branch on the result even when
 | `stray-todo` | on | Flags TODO, TBD, FIXME, and WIP markers left in comments. |
 | `unused-marker` | on | Flags suppression markers that did not suppress anything. |
 | `no-comments` | opt-in | Permits a 10-line file header and documentation comments, then flags ordinary comments. |
+| `test-quality` | opt-in | Flags tests that weaken what they prove — a loop or a conditional in a test body. Parses with a treebank grammar; ten languages. |
 
 Every rule is lexical. Straitjacket reads files and applies patterns; it does
 not parse, resolve types, or follow calls. That is the reason it runs on any

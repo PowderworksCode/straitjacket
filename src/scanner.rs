@@ -41,6 +41,7 @@ pub struct Scanner {
 
 impl Scanner {
     pub fn new(settings: &Settings) -> anyhow::Result<Self> {
+        rules::resolve_test_rules(&settings.test_rules)?;
         let builtins = rules::builtins(settings)?;
         let only: HashSet<_> = rules::resolve(&settings.only)?.into_iter().collect();
         let skip: HashSet<_> = rules::resolve(&settings.skip)?.into_iter().collect();
