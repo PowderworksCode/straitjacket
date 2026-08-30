@@ -1,7 +1,7 @@
 ---
 title: Scope checks per package in a monorepo
 description: Give each package its own settings, and scan one package or the whole tree.
-order: 5
+order: 6
 ---
 
 Every rule in Straitjacket looks at **one file at a time**. Nothing compares a

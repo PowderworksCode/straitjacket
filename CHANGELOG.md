@@ -6,7 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- [Update Straitjacket](https://straitjacket.dev/guides/updating), a guide for
+  the thing every installed tool eventually needs and this one never documented:
+  re-run the installer, roll back with `STRAITJACKET_VERSION`, bump the Action
+  tag, and keep a machine on the release CI runs. Nothing checks for a new
+  version behind your back, and the guide says so -- for a gate, an update that
+  arrives on its own is a red build nobody caused.
+
 ### Changed
+
+- The Action's tag pins the scanner. `version` now defaults to the release the
+  Action ref ships, read from the `Cargo.toml` beside `action.yml` in that ref,
+  rather than to `latest` -- so `@v0.1.3` runs v0.1.3 and a release published
+  afterwards cannot apply new rules to a branch that changed nothing. That is
+  the update strategy this project wants: a bump is a line in a workflow, and
+  the findings it turns up arrive in the pull request that bumps it. `latest`
+  is still available by name, and `version` still overrides. A ref that is not
+  a release -- `@main`, or a version bumped in `Cargo.toml` before its tag is
+  pushed -- installs the latest release and says so in a warning annotation,
+  which is what keeps this repository's own `uses: ./` job working between a
+  version bump and its tag.
 
 - The site no longer names the release it documents. Every page that hands a
   reader a tag to paste writes `{{version}}`, and the build fills it from

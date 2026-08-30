@@ -27,19 +27,24 @@ src/theme/button.css:12:14  [color]  #ff6600
 straitjacket: 1 error(s), 0 warning(s) across 84 file(s); 0 suppressed
 ```
 
-Or build from source with `cargo install straitjacket`. In CI, the bundled
-Action installs the binary and scans the checked-out repository:
+Or build from source with `cargo install straitjacket`. Re-run the installer to
+update; it installs over the copy that is there. In CI, the bundled Action
+installs the binary and scans the checked-out repository:
 
 ```yaml
 - uses: PowderworksCode/straitjacket@v0.1.3
 ```
+
+The tag pins the scanner, not just the Action wrapper, so a release published
+later cannot apply new rules to a branch that changed nothing. Updating is a
+bump of that tag — see [Updating](https://straitjacket.dev/guides/updating).
 
 ## Documentation
 
 Everything lives at **[straitjacket.dev](https://straitjacket.dev)**:
 
 - [Getting started](https://straitjacket.dev/getting-started/) — install, first scan, first finding
-- [Guides](https://straitjacket.dev/guides/) — CI, monorepos, tuning rules, suppressing findings
+- [Guides](https://straitjacket.dev/guides/) — CI, updating, monorepos, tuning rules, suppressing findings
 - [Rules](https://straitjacket.dev/reference/rules/) — what each rule flags and when it runs
 - [CLI](https://straitjacket.dev/reference/cli/) — every flag, exit code, and output format
 - [Configuration](https://straitjacket.dev/reference/config-file/) — `straitjacket.toml` keys and defaults
