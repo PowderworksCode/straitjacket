@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The site no longer names the release it documents. Every page that hands a
+  reader a tag to paste writes `{{version}}`, and the build fills it from
+  `Cargo.toml` — so a page cannot fall behind a release, and nothing has to be
+  run or remembered to keep it current. This needs `powderworks-docs` with
+  `--var`, which the lockfile now takes.
+
+### Fixed
+
+- The site and the README name the current release. They said `v0.1.1`, two
+  releases after that stopped being true, so the CI guide told readers to pin
+  a scanner three versions behind the page describing it. The README is the one
+  tag still written by hand, because GitHub renders it rather than the
+  generator; `docs.yml` fails when it disagrees with `Cargo.toml`.
+
 ## [0.1.3] - 2026-08-25
 
 ### Fixed

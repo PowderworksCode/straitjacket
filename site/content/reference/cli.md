@@ -133,7 +133,7 @@ Prebuilt binary — Linux `x86_64`/`aarch64` (static musl, so one build runs on
 any distribution regardless of glibc) and macOS `arm64`/`x86_64`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/PowderworksCode/straitjacket/main/install.sh | sh
+curl -fsSL https://straitjacket.dev/install | sh
 ```
 
 It verifies the download against the release `SHA256SUMS` and installs to

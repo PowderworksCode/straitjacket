@@ -1,0 +1,10 @@
+# zizmor configuration, read by the fleet lint workflow.
+#
+# The one suppression here is the action putting its own installed binary on
+# PATH. The directory is composed from runner.temp inside the action, nothing
+# from a pull request reaches it, and an installing action that cannot write
+# GITHUB_PATH has not installed anything.
+rules:
+  github-env:
+    ignore:
+      - action.yml

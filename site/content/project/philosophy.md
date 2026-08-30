@@ -38,4 +38,4 @@ other signs. Not trying to get too fancy with it.
 
 Straitjacket has become an exercise in me encoding as much of my personal tastes
 as I can into deterministic checkers I can run across LLM output, hopefully saving
-me the trouble of having to go "Yuck!" myself.
+me the trouble of catching each one myself.

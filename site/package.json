@@ -3,15 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "rm -rf out && powderworks-docs build content --out out --site straitjacket --static public",
-    "social": "python3 node_modules/powderworks-docs/tools/social-card.py --site straitjacket",
-    "social:check": "python3 node_modules/powderworks-docs/tools/social-card.py --site straitjacket --check",
+    "build": "cp ../scripts/install.sh public/install && rm -rf out && powderworks-docs build content --out out --site straitjacket --static public --var version=$(grep -m1 '^version = ' ../Cargo.toml | cut -d'\"' -f2)",
+    "social": "python3 node_modules/@powderworks/docs/tools/social-card.py --site straitjacket",
+    "social:check": "python3 node_modules/@powderworks/docs/tools/social-card.py --site straitjacket --check",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "test": "bun test"
   },
   "dependencies": {
-    "powderworks-docs": "github:PowderworksCode/docs"
+    "@powderworks/docs": "^0.2.0"
   },
   "devDependencies": {
     "wrangler": "^4.123.0"

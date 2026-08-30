@@ -54,6 +54,17 @@ function markdownFiles(dir) {
   );
 }
 
+/**
+ * Whether a page still shows a `{{name}}` the build was meant to fill. The
+ * version these pages quote is passed in at build time, so braces in the
+ * output mean the build ran without its `--var` or against a generator that
+ * does not know the flag — and a reader would see them while every other
+ * assertion here stayed green.
+ */
+function unfilled(html) {
+  return /(?<!\$)\{\{\s*[a-z][a-z0-9-]*\s*\}\}/i.test(html);
+}
+
 function pages(dir, trail = []) {
   const found = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -64,7 +75,7 @@ function pages(dir, trail = []) {
 }
 
 const registry: any = await import(
-  join(SITE, "node_modules", "powderworks-docs", "powderworks.toml")
+  join(SITE, "node_modules", "@powderworks", "docs", "powderworks.toml")
 );
 const named = /--site (\S+)/.exec(script)?.[1];
 const shared = (registry.default ?? registry).site?.[named ?? ""] ?? {};
@@ -81,6 +92,13 @@ describe("rendered titles", () => {
 
   test("the build emitted a page for every markdown file", () => {
     expect(built.length).toBe(markdownFiles(join(SITE, "content")));
+  });
+
+  test("no page ships an unfilled variable", () => {
+    const showing = built
+      .filter(({ file }) => unfilled(readFileSync(file, "utf8")))
+      .map(({ url }) => url);
+    expect(showing).toEqual([]);
   });
 
   test("no name is set in its own face inside code", () => {

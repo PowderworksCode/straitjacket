@@ -2,6 +2,10 @@
 // the scanner by scripts/rules-manifest.sh. The site once documented six rules
 // the binary had never carried; these tests are what makes that a failing
 // build rather than something a reader discovers.
+//
+// The rules reference is the one page that has to list every rule. The README
+// points at it rather than repeating it, so it is checked like any other page:
+// what it names must exist, but it need not name everything.
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,10 +40,13 @@ function mdxFiles(dir: string): string[] {
   return out;
 }
 
-const pages = mdxFiles(DOCS_DIR).map((path) => ({
-  rel: path.slice(DOCS_DIR.length + 1),
-  text: readFileSync(path, "utf8"),
-}));
+const pages = [
+  ...mdxFiles(DOCS_DIR).map((path) => ({
+    rel: path.slice(DOCS_DIR.length + 1),
+    text: readFileSync(path, "utf8"),
+  })),
+  { rel: "README.md", text: readFileSync(README, "utf8") },
+];
 
 /**
  * Rule ids the prose actually asserts are rules, rather than every backticked
@@ -89,15 +96,10 @@ describe("rules manifest", () => {
 
 describe("every rule is documented", () => {
   const reference = readFileSync(RULES_REFERENCE, "utf8");
-  const readme = readFileSync(README, "utf8");
 
   for (const rule of manifest.rules) {
     test(`${rule.id} appears in the rules reference`, () => {
       expect(reference).toContain(`\`${rule.id}\``);
-    });
-
-    test(`${rule.id} appears in the README table`, () => {
-      expect(readme).toContain(`\`${rule.id}\``);
     });
   }
 

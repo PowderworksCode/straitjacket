@@ -1,4 +1,4 @@
-name: release
+name: release (rust)
 
 # A tag is the whole trigger. Everything the installer reads — the archives, the
 # checksums, and the "latest" pointer — is produced here, so a release is never
@@ -30,12 +30,28 @@ jobs:
   # endpoint, so `install.sh` can never see a half-uploaded release.
   draft:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
+    outputs:
+      # Whether this repository publishes a crate, answered where the checkout
+      # is. It cannot be a job-level `if: hashFiles(...)`: that reads a
+      # workspace which does not exist before checkout, and a workflow whose
+      # expression cannot be evaluated does not start at all — no jobs, no
+      # release, on a tag push nobody is watching.
+      crate: ${{ steps.publishes.outputs.crate }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.TAG }}
+      - id: publishes
+        run: |
+          if [ -f scripts/publish.sh ]; then
+            echo "crate=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "crate=false" >> "$GITHUB_OUTPUT"
+            echo "no scripts/publish.sh; this release ends at the smoke test"
+          fi
       - name: Check the tag against Cargo.toml
         run: |
           crate=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
@@ -69,6 +85,7 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-latest
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -77,9 +94,10 @@ jobs:
       # .cargo/config.toml links them with rust-lld against a self-contained
       # musl. No cross toolchain, container, or apt package is involved.
       - run: rustup target add ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          key: ${{ matrix.target }}
+      # No build cache here, deliberately: a cache is writable from other
+      # workflows, and these binaries are the release. Cold builds are the
+      # price of artifacts nothing else could have written to (zizmor's
+      # cache-poisoning audit).
       - run: cargo build --release --locked --target ${{ matrix.target }}
       - name: Package
         run: |
@@ -97,6 +115,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
@@ -135,8 +154,13 @@ jobs:
   # The logic lives in scripts/publish.sh so the same path can be run by hand,
   # and so this job is a caller rather than a second definition of it.
   crate:
-    needs: smoke
+    needs: [draft, smoke]
+    # Only repositories that publish a crate carry the script; everyone else
+    # ends at the smoke test. The answer comes from the draft job, which has
+    # the checkout — see the note on its outputs.
+    if: needs.draft.outputs.crate == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # One place to require a human approval before an irreversible publish:
     # Settings > Environments > crates-io > Required reviewers.
     environment: crates-io

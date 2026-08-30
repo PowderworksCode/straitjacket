@@ -43,7 +43,7 @@ ways nobody can audit.
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
-shellcheck -s sh install.sh
+shellcheck -s sh scripts/install.sh
 ```
 
 Straitjacket scans itself under its own rules, so run it before opening a PR:
@@ -109,8 +109,11 @@ has already had once.
 ## Releasing
 
 Maintainers only. Releases are tag-driven: update `CHANGELOG.md` and the version
-in `Cargo.toml`, tag, and let `release.yml` build the archives and publish the
-crate. `scripts/publish.sh --dry-run` runs on every CI build, so the publish path
+in `Cargo.toml`, pin that version in the README's Action snippet, tag, and let
+`release.yml` build the archives and publish the crate. The site takes the
+version from `Cargo.toml` when it builds, so its pages need no editing; the
+README is rendered by GitHub rather than by the generator, which is why it is
+the one place still written by hand, and why `docs.yml` checks it. `scripts/publish.sh --dry-run` runs on every CI build, so the publish path
 is exercised long before a tag depends on it.
 
 ## License
