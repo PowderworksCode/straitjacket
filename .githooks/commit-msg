@@ -1,0 +1,26 @@
+#!/bin/sh
+# Conventional-commit gate. The fleet lints pull-request titles in CI; this
+# applies the same rule to the commit subject, so a bad message fails here
+# rather than after a push. Bypass with `git commit --no-verify`.
+#
+# Fleet-managed by conf (.ordnung/managed/githooks/commit-msg): edit it there.
+msg_file="$1"
+
+# First non-blank, non-comment line is the subject.
+subject=$(grep -vE '^[[:space:]]*#' "$msg_file" | grep -vE '^[[:space:]]*$' | head -n1)
+
+# Git's own machine-generated messages pass untouched.
+case "$subject" in
+    "Merge "*|"Revert "*|"fixup! "*|"squash! "*) exit 0 ;;
+esac
+
+if printf '%s' "$subject" |
+    grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9./_-]+\))?!?: .+'; then
+    exit 0
+fi
+
+echo "commit message must follow Conventional Commits: type(scope): summary" >&2
+echo "  types: feat fix docs style refactor perf test build ci chore revert" >&2
+echo "  got:   $subject" >&2
+echo "  see https://www.conventionalcommits.org" >&2
+exit 1

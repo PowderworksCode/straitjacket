@@ -20,10 +20,13 @@ export default {
     if (!(request.headers.get("Accept") ?? "").includes("text/markdown"))
       return asset;
 
-    const path = url.pathname !== "/" && url.pathname.endsWith("/")
-      ? url.pathname.slice(0, -1)
-      : url.pathname;
-    const twin = await env.ASSETS.fetch(new URL(`${path}/index.md`, url.origin));
+    const path =
+      url.pathname !== "/" && url.pathname.endsWith("/")
+        ? url.pathname.slice(0, -1)
+        : url.pathname;
+    const twin = await env.ASSETS.fetch(
+      new URL(`${path}/index.md`, url.origin),
+    );
     if (twin.status === 404) return asset;
 
     const response = new Response(twin.body, twin);

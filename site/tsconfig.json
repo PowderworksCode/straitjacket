@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The compiler options are fleet policy and live in tsconfig.base.json, which
+  // conf writes here. Only what is specific to this site belongs below.
+  "extends": "./tsconfig.base.json",
+  // The worker and the tests around it are the whole TypeScript surface; out/
+  // holds generated pages and is excluded by the base.
+  "include": ["worker.ts", "tests/**/*.ts"]
+}

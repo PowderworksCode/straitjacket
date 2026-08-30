@@ -1,6 +1,6 @@
 ---
 title: Contact
-description: How to reach the Straitjacket maintainers: bug reports, rule proposals, and security issues.
+description: "How to reach the Straitjacket maintainers: bug reports, rule proposals, and security issues."
 order: 4
 ---
 

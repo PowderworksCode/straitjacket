@@ -18,4 +18,11 @@ echo "==> installing site dependencies"
     bun install --frozen-lockfile
 )
 
+# Git looks in .git/hooks by default, which nothing tracks. The fleet's hooks
+# are committed under .githooks, so they only run once a checkout is pointed at
+# them; doing it here means a clone that ran this script is a clone that has
+# them.
+echo "==> pointing Git at the committed hooks"
+git config core.hooksPath .githooks
+
 echo "Development environment ready. Run scripts/rules-manifest.sh after changing a rule."
