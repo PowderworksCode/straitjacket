@@ -51,12 +51,10 @@ unic-emoji-char = "0.9"
 # file in it. Only the acquisition half is taken -- `fetch-bytes` is treebank's
 # manifest, sha256 check and content-addressed cache with no wasm engine
 # attached, so it does not stand up a second engine beside wasmer above.
-# Still a git reference because the published 0.2.1 predates `fetch-bytes` and
-# carries wasmtime; it needs a release before this can be a version. Pinned to
-# the branch that swaps ring for graviola until that merges: with ring in the
-# tree, `cargo build --release --target aarch64-unknown-linux-musl` cannot run
-# at all, because ring's build.rs wants a musl cross compiler.
-treebank = { git = "https://github.com/PowderworksCode/treebank", branch = "claude/test-quality-checker-j5whfd", default-features = false, features = ["fetch-bytes"] }
+# Still a git reference rather than a version: the published 0.2.1 predates
+# `fetch-bytes` and carries wasmtime, so it cannot build the musl targets at
+# all. treebank 0.3.0 is what this becomes a version dependency on.
+treebank = { git = "https://github.com/PowderworksCode/treebank", default-features = false, features = ["fetch-bytes"] }
 
 [dev-dependencies]
 tempfile = "3"
