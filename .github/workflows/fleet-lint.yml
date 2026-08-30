@@ -203,7 +203,7 @@ jobs:
           echo "count=${count}" >> "$GITHUB_OUTPUT"
       # Heavy — it drives the compiler over the whole workspace — so the cache
       # earns its place, but only where the job will actually build.
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         if: steps.bins.outputs.count != '0'
       - name: Install hawk
         if: steps.bins.outputs.count != '0'
