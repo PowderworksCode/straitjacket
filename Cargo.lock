@@ -152,7 +152,7 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 [[package]]
 name = "beamte"
 version = "0.3.0"
-source = "git+https://github.com/PowderworksCode/beamte?branch=claude%2Fsj-const-files-2g6g2t#2aa372ecec972e9b3535885c4615968d6a0878bc"
+source = "git+https://github.com/PowderworksCode/beamte?rev=2aa372ecec972e9b3535885c4615968d6a0878bc#2aa372ecec972e9b3535885c4615968d6a0878bc"
 dependencies = [
  "treebank",
 ]
