@@ -34,12 +34,13 @@ jobs:
     permissions:
       contents: write
     outputs:
-      # Whether this repository publishes a crate, answered where the checkout
-      # is. It cannot be a job-level `if: hashFiles(...)`: that reads a
-      # workspace which does not exist before checkout, and a workflow whose
-      # expression cannot be evaluated does not start at all — no jobs, no
-      # release, on a tag push nobody is watching.
+      # What this repository publishes, answered where the checkout is. Neither
+      # can be a job-level `if: hashFiles(...)`: that reads a workspace which
+      # does not exist before checkout, and a workflow whose expression cannot
+      # be evaluated does not start at all — no jobs, no release, on a tag push
+      # nobody is watching.
       crate: ${{ steps.publishes.outputs.crate }}
+      binary: ${{ steps.publishes.outputs.binary }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,6 +52,16 @@ jobs:
           else
             echo "crate=false" >> "$GITHUB_OUTPUT"
             echo "no scripts/publish.sh; this release ends at the smoke test"
+          fi
+          # A library crate has nothing to put in an archive, nothing to
+          # install, and nothing to smoke-test. Cargo is asked rather than the
+          # file tree, because a binary target can be declared several ways.
+          if cargo metadata --no-deps --format-version 1 |
+              jq -e '[.packages[].targets[] | select(any(.kind[]; . == "bin"))] | length > 0' >/dev/null; then
+            echo "binary=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "binary=false" >> "$GITHUB_OUTPUT"
+            echo "no binary targets; this release is a crate publish only"
           fi
       - name: Check the tag against Cargo.toml
         run: |
@@ -70,6 +81,7 @@ jobs:
 
   build:
     needs: draft
+    if: needs.draft.outputs.binary == 'true'
     permissions:
       contents: write
     strategy:
@@ -112,8 +124,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: gh release upload "$TAG" "straitjacket-${TAG}-${{ matrix.target }}.tar.gz" --clobber
 
+  # Runs for every release, because un-drafting is not a binary concern: a
+  # library's release would otherwise stay a draft forever. Only the archives
+  # are conditional. `always()` is what lets a skipped `build` through; without
+  # it a skipped dependency skips this job too.
   publish:
-    needs: build
+    needs: [draft, build]
+    if: >-
+      always() && needs.draft.result == 'success'
+      && (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -122,6 +141,7 @@ jobs:
       # The checksums are computed from what the release actually holds rather
       # than from what each build job believes it uploaded.
       - name: Checksum every archive
+        if: needs.draft.outputs.binary == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -140,7 +160,10 @@ jobs:
   # through both the script and the action. Called rather than triggered: a
   # release published by GITHUB_TOKEN raises no event that starts a workflow.
   smoke:
-    needs: publish
+    needs: [draft, publish]
+    if: >-
+      always() && needs.publish.result == 'success'
+      && needs.draft.outputs.binary == 'true'
     permissions:
       contents: read
     uses: ./.github/workflows/install-smoke.yml
@@ -154,11 +177,19 @@ jobs:
   # The logic lives in scripts/publish.sh so the same path can be run by hand,
   # and so this job is a caller rather than a second definition of it.
   crate:
-    needs: [draft, smoke]
+    needs: [draft, publish, smoke]
     # Only repositories that publish a crate carry the script; everyone else
     # ends at the smoke test. The answer comes from the draft job, which has
     # the checkout — see the note on its outputs.
-    if: needs.draft.outputs.crate == 'true'
+    #
+    # A skipped smoke job means either "no binary in this repository" or "the
+    # binary never got that far", and those must not read alike. `publish`
+    # tells them apart: it succeeds when the archives are up or when there were
+    # none to build, and is skipped when the build failed.
+    if: >-
+      always() && needs.draft.outputs.crate == 'true'
+      && needs.publish.result == 'success'
+      && (needs.smoke.result == 'success' || needs.smoke.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # One place to require a human approval before an irreversible publish:

@@ -34,6 +34,10 @@
 #   CARGO_REGISTRIES_<NAME>_TOKEN   ... or for --execute --registry <name>.
 #   Neither is ever logged.
 #
+# Fleet-managed by conf (.ordnung/managed/publishing/rust/publish.sh): edit it
+# there. The crate name is substituted from the repository name, so a crate
+# named differently from its repository needs a copy of its own.
+#
 # straitjacket-allow-file:no-comments — this is the procedure for the one
 # action in the repository that cannot be undone, and sh has no
 # documentation-comment syntax to hoist the reasoning into.

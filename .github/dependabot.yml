@@ -1,14 +1,14 @@
 version: 2
 
-# Fleet-owned. Edit this in conf, not in the member repository: a local change is
-# drift, and the next sync overwrites it.
+# Fleet-owned. Edit this in the policy tier, not in the member repository: a
+# local change is drift, and the next sync overwrites it.
 #
 # One file for every member. The directories inside it are globs rather than a
 # list of each repository's actual layout, so this file states fleet POLICY —
 # weekly, minor and patch grouped into one pull request, five open at most — and
 # lets the globs discover the topology. A glob matching nothing is not an error,
-# so the same bytes are correct in a Cargo workspace, a Bun site, and conf,
-# which has neither.
+# so the same bytes are correct in a Cargo workspace, a Bun site, and a fleet
+# definition, which has neither.
 #
 # The alternative was a file per repository shape. That put facts about each
 # repository's layout into the fleet, where they would go stale silently the
