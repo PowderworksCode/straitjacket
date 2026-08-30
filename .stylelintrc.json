@@ -1,8 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/stylelintrc",
-  "extends": [
-    "stylelint-config-standard"
-  ],
+  "extends": ["stylelint-config-standard"],
   "rules": {
     "declaration-block-single-line-max-declarations": null,
     "rule-empty-line-before": null,
@@ -10,15 +8,12 @@
     "comment-empty-line-before": null,
     "selector-class-pattern": null,
     "no-descending-specificity": null,
+    "no-duplicate-selectors": null,
     "custom-property-empty-line-before": null,
     "value-keyword-case": [
       "lower",
       {
-        "ignoreProperties": [
-          "font",
-          "font-family",
-          "/^--font/"
-        ]
+        "ignoreProperties": ["font", "font-family", "/^--font/"]
       }
     ]
   }

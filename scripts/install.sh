@@ -165,6 +165,30 @@ download_asset() {
     fi
 }
 
+# The version of the binary already at a path, or nothing.
+#
+# Re-running this script is how a person updates, so what is already there
+# is worth knowing before anything is downloaded. A binary that is missing,
+# unreadable, built for another architecture, or too old to answer
+# `--version` all mean the same thing here -- nothing to compare against --
+# and each leaves this empty so the run proceeds as a first install.
+#
+# The second field is the version because that is what clap prints: `name
+# X.Y.Z`. Anything else yields a value that matches no tag, which costs a
+# skipped download and never a wrong install.
+installed_version() {
+    [ -x "$1" ] || return 0
+    "$1" --version 2>/dev/null | awk 'NR == 1 { print $2 }'
+}
+
+# Where to put the binary, said once, because two messages end with it.
+path_note() {
+    case ":${PATH}:" in
+        *":${install_dir}:"*) ;;
+        *) say "${install_dir} is not on PATH. Add: export PATH=\"${install_dir}:\$PATH\"" ;;
+    esac
+}
+
 main() {
     need curl
     need tar
@@ -192,6 +216,17 @@ main() {
 
     name="straitjacket-${version}-${target}.tar.gz"
     install_dir=${STRAITJACKET_INSTALL_DIR:-"${HOME}/.local/bin"}
+
+    # An install over the same version downloads a few megabytes to write the
+    # bytes that are already there. Saying so and stopping is both faster and
+    # a truer answer to what the person asked, which was to be on this
+    # version. Delete the binary and run again to force a reinstall.
+    before=$(installed_version "${install_dir}/straitjacket")
+    if [ -n "$before" ] && [ "v${before}" = "$version" ]; then
+        say "already at ${before} in ${install_dir}/straitjacket; nothing to do"
+        path_note
+        return 0
+    fi
 
     work=$(mktemp -d)
     # The half-installed binary goes too. Leaving straitjacket.new behind means
@@ -223,11 +258,17 @@ main() {
   The archive was built for ${target}, which is what this machine reports.
   If that is wrong, install with \`cargo install straitjacket\` instead."
 
-    say "installed ${installed} to ${install_dir}/straitjacket"
-    case ":${PATH}:" in
-        *":${install_dir}:"*) ;;
-        *) say "${install_dir} is not on PATH. Add: export PATH=\"${install_dir}:\$PATH\"" ;;
-    esac
+    # Which of the three things happened. "installed 0.1.2" reads identically
+    # after a first install, a re-run, and a downgrade, and a person pinning
+    # STRAITJACKET_VERSION to walk backwards deserves to see that they did.
+    # `replaced` rather than `updated` because this moves either direction,
+    # and the two versions say which.
+    if [ -n "$before" ]; then
+        say "replaced ${before} with $(installed_version "${install_dir}/straitjacket") in ${install_dir}/straitjacket"
+    else
+        say "installed ${installed} to ${install_dir}/straitjacket"
+    fi
+    path_note
 }
 
 main "$@"
