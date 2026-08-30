@@ -84,6 +84,64 @@ jobs:
           min-severity: high
           advanced-security: false
 
+  # Prose style, over the Markdown a member writes. Vale fetches the packages
+  # named in .vale.ini at run time, so the styles are versioned by that file
+  # rather than committed here.
+  prose-style:
+    name: vale
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Asked after checkout, never as a job-level `if: hashFiles(...)`: that
+      # reads a workspace which does not exist yet, and a workflow whose
+      # expression cannot be evaluated does not start at all.
+      - name: A configured member is a graded one
+        id: configured
+        run: |
+          if [ -f .vale.ini ]; then
+            echo "vale=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "vale=false" >> "$GITHUB_OUTPUT"
+            echo "no .vale.ini; prose style is not graded here"
+          fi
+      - uses: errata-ai/vale-action@518a9136acc6e6668ce7c00d367051e0941e87ff # v3.0.0
+        if: steps.configured.outputs.vale == 'true'
+        with:
+          fail_on_error: true
+
+  # Stylesheets, for the members that configure them. Run through bunx rather
+  # than a dependency, so a repository that writes CSS is not made to declare a
+  # linter it never imports.
+  styles:
+    name: stylelint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.0"
+      - name: A configured member is a graded one
+        id: configured
+        run: |
+          if [ -f .stylelintrc.json ]; then
+            echo "stylelint=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stylelint=false" >> "$GITHUB_OUTPUT"
+            echo "no .stylelintrc.json; stylesheets are not graded here"
+          fi
+      - name: Stylelint
+        if: steps.configured.outputs.stylelint == 'true'
+        run: |
+          sheets=$(git ls-files '*.css' '*.scss' | grep -v node_modules || true)
+          if [ -z "$sheets" ]; then
+            echo "no stylesheets tracked"
+            exit 0
+          fi
+          # shellcheck disable=SC2086 — the file list is deliberately split.
+          bunx --bun stylelint@16 --config .stylelintrc.json $sheets
+
   shell:
     name: shellcheck
     runs-on: ubuntu-latest
