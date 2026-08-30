@@ -151,9 +151,8 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
 name = "beamte"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d369373b6cfa7fd9d2e8c8716ff29a31b111aabdb3ecaf26d07d60b218df553b"
+version = "0.2.0"
+source = "git+https://github.com/PowderworksCode/beamte#5025a62d797b5f869584d86694022400f68ba694"
 dependencies = [
  "treebank",
 ]

@@ -43,6 +43,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   listing what beamte does have, because a typo that silently disables a rule
   is the same quiet failure as a test that passes by being empty.
 
+- `env-vars`, an opt-in rule that reports code reading the process environment
+  where nothing declares it -- `std::env::var`, `os.environ`, `process.env`,
+  `ENV[...]`, `System.getenv`, `getenv` -- in the nine languages beamte's
+  `env-read` covers. An ambient read is configuration no signature admits to,
+  and no small test of that code can stay hermetic (*Test Sizes*, 2010-12-13).
+  `env-files` names the files that *are* the configuration edge, where reads
+  are licensed -- `theme-files` for the environment; everywhere else a read is
+  an error. Enable with `env-vars = true` or `--env-vars`. Opt-in for
+  `test-quality`'s reason: the first scan of a language downloads its grammar.
+  Shell is deliberately not covered, `$VAR` being the language's own variable
+  model, and Rust's compile-time `env!` is not a finding -- the build declares
+  those variables, which is the announced channel the rule steers reads toward.
+- `test-rules` now rejects a file-scoped beamte rule by name, pointing at
+  `env-vars` instead: listing `env-read` there would run it over test files
+  alone while looking like it ran everywhere.
 
 - [Update Straitjacket](https://straitjacket.dev/guides/updating), a guide for
   the thing every installed tool eventually needs and this one never documented:
