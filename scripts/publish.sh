@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Publish straitjacket to crates.io.
 #
+# Fleet-managed by conf (.ordnung/managed/publishing/rust/publish.sh): edit it
+# there. The crate name is substituted from the repository name, so a crate
+# named differently from its repository needs a copy of its own.
+#
 # Publishing is irreversible: a version can be yanked but never deleted, and a
 # name/version pair can never be reused. The shape of this script follows from
 # that.
@@ -33,10 +37,6 @@
 #   CARGO_REGISTRY_TOKEN            required for --execute against crates.io.
 #   CARGO_REGISTRIES_<NAME>_TOKEN   ... or for --execute --registry <name>.
 #   Neither is ever logged.
-#
-# Fleet-managed by conf (.ordnung/managed/publishing/rust/publish.sh): edit it
-# there. The crate name is substituted from the repository name, so a crate
-# named differently from its repository needs a copy of its own.
 #
 # straitjacket-allow-file:no-comments — this is the procedure for the one
 # action in the repository that cannot be undone, and sh has no
