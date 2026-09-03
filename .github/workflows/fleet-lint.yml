@@ -10,7 +10,13 @@ name: fleet-lint
 on:
   push:
     branches: [main]
+  # `edited` joins the three default types because pr-title reads the title out
+  # of the event payload: without it, a title corrected in response to the
+  # check raises no event, and a re-run replays the payload that failed. The
+  # only way left to clear the gate would be another push, which a title fix
+  # does not have.
   pull_request:
+    types: [opened, synchronize, reopened, edited]
   # Periodic coverage: these tools grow rules between releases, so a repository
   # nobody has touched can start failing for a reason worth knowing about.
   schedule:
@@ -209,7 +215,10 @@ jobs:
     # drives the compiler over the whole workspace, and a pull request that
     # touches no Rust cannot change what it would say.
     needs: changes
-    if: needs.changes.outputs.rust == 'true'
+    # Not on an edited title or body: nothing a description says changes what
+    # the compiler sees, and this is the one job here that can run half an
+    # hour. The rest are seconds and can afford to answer every event.
+    if: needs.changes.outputs.rust == 'true' && github.event.action != 'edited'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Whether hawk applies is answered on the runner, after checkout: a
