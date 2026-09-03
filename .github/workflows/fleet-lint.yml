@@ -87,6 +87,35 @@ jobs:
           min-severity: high
           advanced-security: false
 
+  # Pull-request titles, held to the rule the commit-msg hook holds subjects to.
+  # A squash merge writes the title into the history, so on the default branch it
+  # is the message that lasts, and nothing was checking it.
+  title:
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The title arrives through the environment rather than interpolated into
+      # the script. It is text somebody else wrote, and `${{ }}` would paste it
+      # in as shell before the shell ever sees it as data.
+      - name: Conventional Commits
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Git's own generated subjects pass untouched, as they do in the hook.
+          case "$TITLE" in
+              "Merge "*|"Revert "*) exit 0 ;;
+          esac
+          if printf '%s' "$TITLE" |
+              grep -qE '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9./_-]+\))?!?: .+'; then
+              exit 0
+          fi
+          echo "::error::pull-request title must follow Conventional Commits: type(scope): summary"
+          echo "  types: feat fix docs style refactor perf test build ci chore revert"
+          echo "  got:   $TITLE"
+          exit 1
+
   # Prose style, over the Markdown a member writes. Vale fetches the packages
   # named in .vale.ini at run time, so the styles are versioned by that file
   # rather than committed here.
