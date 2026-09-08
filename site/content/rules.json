@@ -18,6 +18,11 @@
       "default_enabled": true
     },
     {
+      "id": "env-vars",
+      "summary": "code reads the process environment outside the declared edge",
+      "default_enabled": false
+    },
+    {
       "id": "file-size",
       "summary": "file exceeds the configured line budget",
       "default_enabled": true

@@ -34,7 +34,7 @@ wasmer = { version = "7", default-features = false, features = ["sys", "cranelif
 # `pure` selects the Rust implementation instead, and naming blake3 here is what
 # unifies that feature across the whole graph.
 blake3 = { version = "1", default-features = false, features = ["pure"] }
-beamte = "0.1"
+beamte = "0.2"
 clap = { version = "4", features = ["derive"] }
 ignore = "0.4"
 inventory = "0.3"
@@ -64,3 +64,13 @@ let_underscore_must_use = "deny"
 [profile.release]
 lto = true
 strip = true
+
+# beamte 0.2 (`env-read`, `Rule::scope`) is merged but not yet on crates.io.
+# Until it is, the requirement above resolves through this patch to beamte's
+# default branch, which carries it. Deliberately not a branch pin: the feature
+# branch was deleted when it merged, and a patch naming a branch that no longer
+# exists fails dependency resolution before a single check runs. Drop this
+# table the moment 0.2 is published -- the requirement is already written for
+# the registry, so deleting these lines is the whole change.
+[patch.crates-io]
+beamte = { git = "https://github.com/PowderworksCode/beamte" }

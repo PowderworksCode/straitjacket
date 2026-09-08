@@ -18,7 +18,7 @@ Run `straitjacket` at the root of any project. It honors your `.gitignore`,
 prints one line per finding as `path:line:col [rule] matched`, and exits
 non-zero on any error — so CI fails the moment slop lands.
 
-Nine of the eleven rules are on at the first run, so the strictest
+Nine of the twelve rules are on at the first run, so the strictest
 Straitjacket gets by default takes no configuration to reach. What you
 disagree with, you turn off — `--skip` for a run, `straitjacket.toml` for
 good, `straitjacket-allow` on the one line you meant. The other two you opt

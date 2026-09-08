@@ -9,8 +9,10 @@
 //! `tb_*` ABI, statically linked, importing only WASI. It is not linked C, so
 //! it cannot break the musl cross-build the release depends on.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::Path;
+use std::rc::Rc;
 use std::sync::Mutex;
 
 use anyhow::{Context, Result, bail};
@@ -397,6 +399,45 @@ impl Loaded {
             child_count: 0,
         })
     }
+}
+
+thread_local! {
+    /// Loaded packs, and the reasons for the ones that would not load. Shared
+    /// by every rule that parses, so two rules meeting the same language in
+    /// one scan JIT its grammar once between them.
+    ///
+    /// A `FileRule` must be `Send + Sync` and a wasmer `Store` is neither, so
+    /// the packs cannot live in a rule. They live beside the rules instead,
+    /// which costs nothing today -- the walk in `src/walk.rs` is a single
+    /// sequential iterator -- and stays correct rather than unsound if that
+    /// ever changes. A parallel walk would pay one JIT per thread per grammar.
+    ///
+    /// The failure is cached with the same weight as the success: a machine
+    /// with no network pays one failed fetch, not one per file.
+    static CACHED: RefCell<HashMap<&'static str, std::result::Result<Rc<Pack>, String>>> =
+        RefCell::new(HashMap::new());
+}
+
+/// The pack for a grammar, fetched once and then reused.
+///
+/// Fetched per language, and only once a rule has already decided a file is
+/// worth parsing, so a Python repository never downloads the Java grammar.
+pub fn cached(grammar: &'static str) -> std::result::Result<Rc<Pack>, String> {
+    CACHED.with_borrow_mut(|packs| {
+        packs
+            .entry(grammar)
+            .or_insert_with(|| {
+                acquire(grammar)
+                    .map(Rc::new)
+                    .map_err(|error| format!("{error:#}"))
+            })
+            .clone()
+    })
+}
+
+fn acquire(grammar: &'static str) -> Result<Pack> {
+    let bytes = treebank::fetch::fetch_bytes(grammar)?;
+    Pack::from_bytes(&bytes, &format!("the treebank {grammar} pack"))
 }
 
 fn intern(table: &mut Vec<String>, ids: &mut HashMap<String, u32>, value: String) -> u32 {

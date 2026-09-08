@@ -30,6 +30,13 @@ pub struct FileConfig {
     /// Which of beamte's test-quality rules to run. Unset means all of them,
     /// including any beamte adds later.
     pub test_rules: Option<Vec<String>>,
+    /// Turn on `env-vars`, which reads every parseable file for environment
+    /// reads outside the declared edge. Opt-in for `test-quality`'s reason:
+    /// the first run downloads a grammar.
+    pub env_vars: Option<bool>,
+    /// The files licensed to read the process environment: the declared
+    /// configuration edge. `theme-files` for the environment.
+    pub env_files: Option<Vec<String>>,
     /// Sections that configured rules Straitjacket no longer has. They are
     /// accepted by the parser only so that [`reject_removed_sections`] can
     /// name the rule that went away.
@@ -60,6 +67,8 @@ pub struct Settings {
     pub no_fail: bool,
     pub fail_on_unused_markers: bool,
     pub test_rules: Vec<String>,
+    pub env_vars: bool,
+    pub env_files: Vec<PathBuf>,
 }
 
 impl Default for Settings {
@@ -82,6 +91,8 @@ impl Default for Settings {
             no_fail: false,
             fail_on_unused_markers: true,
             test_rules: Vec::new(),
+            env_vars: false,
+            env_files: Vec::new(),
         }
     }
 }
@@ -107,6 +118,12 @@ impl Settings {
         }
         if let Some(test_rules) = file.test_rules {
             self.test_rules = test_rules;
+        }
+        if let Some(value) = file.env_vars {
+            self.env_vars = value;
+        }
+        if let Some(paths) = file.env_files {
+            self.env_files = paths.into_iter().map(PathBuf::from).collect();
         }
         if let Some(value) = file.max_lines {
             self.max_lines = value;

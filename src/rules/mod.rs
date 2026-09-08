@@ -1,7 +1,9 @@
+mod beamte_findings;
 mod color;
 mod comments;
 mod deep_nesting;
 mod emoji;
+mod env_vars;
 mod file_size;
 mod inline_font;
 mod inline_svg;
@@ -135,16 +137,31 @@ pub fn resolve(names: &[String]) -> anyhow::Result<Vec<RuleKey>> {
 ///
 /// Straitjacket carries one rule key for all of them, so these names never
 /// reach [`resolve`] and would otherwise be accepted silently -- a typo in
-/// `test-rules` would quietly turn a rule off rather than say so.
+/// `test-rules` would quietly turn a rule off rather than say so. A rule
+/// whose beamte scope is `File` is rejected by name too: it runs under
+/// `env-vars`, over every file, and listing it here would run it over test
+/// files alone while looking like it ran.
 pub fn resolve_test_rules(names: &[String]) -> anyhow::Result<()> {
-    let unknown: Vec<&str> = names
-        .iter()
-        .filter(|name| beamte::rule(name).is_none())
-        .map(|name| name.as_str())
-        .collect();
+    let mut unknown = Vec::new();
+    let mut misfiled = Vec::new();
+    for name in names {
+        match beamte::rule(name) {
+            None => unknown.push(name.as_str()),
+            Some(rule) if rule.scope == beamte::Scope::File => misfiled.push(name.as_str()),
+            Some(_) => {}
+        }
+    }
+    if !misfiled.is_empty() {
+        bail!(
+            "{} runs over every file, not only tests: enable `env-vars` instead \
+             of naming it in `test-rules`.",
+            misfiled.join(", ")
+        );
+    }
     if !unknown.is_empty() {
         let known: Vec<&str> = beamte::catalogue()
             .iter()
+            .filter(|rule| rule.scope == beamte::Scope::Tests)
             .map(|rule| rule.id.as_str())
             .collect();
         bail!(
@@ -156,6 +173,7 @@ pub fn resolve_test_rules(names: &[String]) -> anyhow::Result<()> {
     Ok(())
 }
 
+pub use env_vars::KEY as ENV_VARS;
 pub use no_comments::KEY as NO_COMMENTS;
 pub use test_quality::KEY as TEST_QUALITY;
 pub use unused_marker::{KEY as UNUSED_MARKER, descriptor as unused_marker_descriptor};

@@ -34,6 +34,7 @@ installed version ever disagree.
 | `unused-marker` | on | a suppression marker that did not suppress anything — the finding it was written for is gone, so the marker is stale. Turn it off with `--no-fail-on-unused-markers`. |
 | `no-comments` | **opt-in** | every comment, in every language it knows (`//`, `/* */`, `#`, `--`, `<!-- -->`). See [no-comments mode](#no-comments-mode) below. |
 | `test-quality` | **opt-in** | tests that weaken what they prove — currently a loop or a conditional in a test body. Parses the file with a treebank grammar, so it reads a test the way the language writes one: `#[test]`, `@Test`, `it(...)`, `TEST(...)`, `test "..."`. See [test quality](#test-quality) below. |
+| `env-vars` | **opt-in** | code that reads the process environment where nothing declares it — `std::env::var`, `os.environ`, `process.env`, `ENV[...]`, `System.getenv`, `getenv`. Files listed in `env-files` are the declared configuration edge and are allowed to read it. See [environment variables](#environment-variables) below. |
 
 ### `deep-nesting` and embedded DSLs
 
@@ -106,7 +107,7 @@ or in [`straitjacket.toml`](/reference/config-file):
 
 ```toml
 only = ["test-quality"]
-test-rules = ["test-logic"]   # optional: unset runs every rule beamte has
+test-rules = ["test-logic"]   # optional: unset runs every test rule beamte has
 ```
 
 **It is opt-in because it reaches the network.** The grammar for a language is
@@ -211,3 +212,52 @@ existing repository.
 | respect `.gitignore` | on | `--no-ignore` |
 | fail on unused markers | on | `--no-fail-on-unused-markers` |
 | fail on findings | on | `--no-fail` |
+
+## environment variables
+
+An environment variable read in the middle of ordinary code is configuration
+no signature admits to: the function behaves differently on two machines and
+nothing in its declaration says why. `env-vars` reports every such read —
+`std::env::var` in Rust, `os.environ` and `os.getenv` in Python, `process.env`
+in TypeScript and JavaScript, `ENV[...]` in Ruby, `System.getenv` and
+`System.getProperty` in Java, `getenv` in C and C++, `std.process.getEnvVarOwned`
+in Zig. The finding is [beamte](https://github.com/PowderworksCode/beamte)'s
+`env-read`, restating [Test
+Sizes](https://testing.googleblog.com/2010/12/test-sizes.html): a small test
+may not touch system properties, and a component that reads the environment
+mid-body forces that violation on every small test that executes it.
+
+```sh
+straitjacket --env-vars
+```
+
+or in [`straitjacket.toml`](/reference/config-file):
+
+```toml
+env-vars = true
+env-files = ["src/config.rs"]   # the declared configuration edge
+```
+
+`env-files` names the files that *are* the configuration edge — the one module
+that reads the environment and hands values on as arguments. Reads there are
+licensed; reads anywhere else are errors. It is `theme-files` for the
+environment: designate the edge instead of papering readers over with markers.
+The exception with a story — a genuinely per-invocation override — takes a
+[suppression marker](/reference/suppression-markers), which must carry one.
+
+**It is opt-in because it reaches the network**, exactly as `test-quality` is:
+the grammar for a language is downloaded the first time a file in that language
+carries an environment-shaped token, verified and cached content-addressed
+after that. A file whose grammar cannot be fetched is reported as **not read**
+rather than passing quietly.
+
+Files are prefiltered by cheap substrings (`env::var`, `environ`,
+`process.env`), so a file that cannot contain a read is never parsed and the
+rule stays affordable over a whole repository.
+
+Nine languages: Python, Ruby, Rust, Java, TypeScript, JavaScript, C, C++ and
+Zig. Shell is deliberately not among them — `$VAR` is the language's own
+variable model, and flagging every expansion would be flagging the language.
+Compile-time reads are not findings either: Rust's `env!` resolves when the
+build runs, against variables the build declares, which is the announced
+channel this rule steers reads toward.
