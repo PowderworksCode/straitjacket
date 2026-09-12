@@ -16,17 +16,12 @@
 //! and a project that dislikes one rule are both real. `test-rules` in
 //! `straitjacket.toml` names them; unset means all of them.
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-
 use beamte::node::Unit;
 use beamte::{Property, RuleId, Selection};
 
 use crate::Settings;
 use crate::finding::{EvidenceStep, Finding, Location, Severity};
 use crate::language::LanguageProfile;
-use crate::pack::Pack;
 use crate::rule::{Candidate, FileRule, RuleDescriptor, RuleKey, SourceFile};
 use crate::rules::RuleRegistration;
 
@@ -133,44 +128,6 @@ fn path_names_a_test(path: &str) -> bool {
     lowered.contains("test") || lowered.contains("spec")
 }
 
-thread_local! {
-    /// Loaded packs, and the reasons for the ones that would not load.
-    ///
-    /// A `FileRule` must be `Send + Sync` and a wasmer `Store` is neither, so
-    /// the packs cannot live in the rule. They live beside it instead, which
-    /// costs nothing today -- the walk in `src/walk.rs` is a single sequential
-    /// iterator -- and stays correct rather than unsound if that ever changes.
-    /// A parallel walk would pay one JIT per thread per grammar.
-    ///
-    /// The failure is cached with the same weight as the success: a machine
-    /// with no network pays one failed fetch, not one per file.
-    static PACKS: RefCell<HashMap<&'static str, Result<Rc<Pack>, String>>> =
-        RefCell::new(HashMap::new());
-}
-
-/// The pack for a grammar, fetched once and then reused.
-///
-/// Fetched per language, and only once a file of that language has already
-/// looked like a test, so a Python repository never downloads the Java
-/// grammar.
-fn pack(grammar: &'static str) -> Result<Rc<Pack>, String> {
-    PACKS.with_borrow_mut(|packs| {
-        packs
-            .entry(grammar)
-            .or_insert_with(|| {
-                acquire(grammar)
-                    .map(Rc::new)
-                    .map_err(|error| format!("{error:#}"))
-            })
-            .clone()
-    })
-}
-
-fn acquire(grammar: &'static str) -> anyhow::Result<Pack> {
-    let bytes = treebank::fetch::fetch_bytes(grammar)?;
-    Pack::from_bytes(&bytes, &format!("the treebank {grammar} pack"))
-}
-
 pub struct TestQualityRule {
     /// Empty means every rule beamte has, which is also what it will mean
     /// after beamte grows one.
@@ -205,10 +162,19 @@ fn build(settings: &Settings) -> Box<dyn FileRule> {
     Box::new(TestQualityRule::new(only))
 }
 
+/// The catalogue holds rules this one does not run. A file-scoped rule
+/// belongs to whichever rule reads whole files, and advertising it here would
+/// promise a check `test-quality` never makes.
 fn instruction(_settings: &Settings) -> String {
     let mut sentences = Vec::new();
     for rule in beamte::catalogue() {
-        sentences.push(format!("{} ({})", rule.instruction, rule.citation.title));
+        if rule.scope != beamte::Scope::Tests {
+            continue;
+        }
+        match rule.citation {
+            Some(citation) => sentences.push(format!("{} ({})", rule.instruction, citation.title)),
+            None => sentences.push(rule.instruction.to_string()),
+        }
     }
     sentences.join(" ")
 }
@@ -224,14 +190,17 @@ inventory::submit! {
 /// Beamte states a property; a severity is a policy about a repository, and
 /// straitjacket is the one holding the policy.
 ///
+/// A rule defending no test property makes no claim this mapping is about, so
+/// it takes the milder of the two rather than a guess.
+///
 /// A test that does not fail when the code is broken is the failure that
 /// costs something -- the suite reports green over a bug. The other two make
 /// a suite harder to trust and to read, which is worth saying and not worth
 /// failing a build over on its own.
-fn severity_of(property: Property) -> Severity {
+fn severity_of(property: Option<Property>) -> Severity {
     match property {
-        Property::Fidelity => Severity::Error,
-        Property::Resilience | Property::Precision => Severity::Warning,
+        Some(Property::Fidelity) => Severity::Error,
+        Some(Property::Resilience | Property::Precision) | None => Severity::Warning,
     }
 }
 
@@ -259,7 +228,7 @@ impl FileRule for TestQualityRule {
             return;
         };
 
-        let pack = match pack(entry.pack) {
+        let pack = match crate::pack::cached(entry.pack) {
             Ok(pack) => pack,
             Err(reason) => {
                 candidates.push(not_read(
@@ -354,7 +323,7 @@ fn message_of(finding: &beamte::Finding) -> String {
 /// and makes the rule set auditable rather than one person's taste.
 fn help_of(finding: &beamte::Finding) -> Option<String> {
     let citation = beamte::rule(finding.rule.as_str()).map(|rule| rule.citation);
-    match (&finding.help, citation) {
+    match (&finding.help, citation.flatten()) {
         (Some(help), Some(citation)) => {
             Some(format!("{help} — {} ({})", citation.title, citation.url))
         }
@@ -426,12 +395,17 @@ mod tests {
     #[test]
     fn a_broken_suite_is_an_error_and_a_muddled_one_is_a_warning() {
         assert_eq!(
-            severity_of(Property::Fidelity),
+            severity_of(Some(Property::Fidelity)),
             crate::finding::Severity::Error
         );
         assert_eq!(
-            severity_of(Property::Precision),
+            severity_of(Some(Property::Precision)),
             crate::finding::Severity::Warning
+        );
+        assert_eq!(
+            severity_of(None),
+            crate::finding::Severity::Warning,
+            "a rule defending no test property makes no claim this maps"
         );
     }
 

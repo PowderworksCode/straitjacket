@@ -33,6 +33,13 @@ struct RegisteredRule {
     enabled: bool,
 }
 
+/// Whether one rule survived `only`/`skip` and is going to run.
+fn rules_enabled(rules: &[RegisteredRule], key: crate::rules::RuleKey) -> bool {
+    rules
+        .iter()
+        .any(|registered| registered.enabled && registered.rule.descriptor().id == key)
+}
+
 pub struct Scanner {
     rules: Vec<RegisteredRule>,
     include_json: bool,
@@ -45,13 +52,14 @@ impl Scanner {
         let builtins = rules::builtins(settings)?;
         let only: HashSet<_> = rules::resolve(&settings.only)?.into_iter().collect();
         let skip: HashSet<_> = rules::resolve(&settings.skip)?.into_iter().collect();
-        let rules = builtins
+        let rules: Vec<RegisteredRule> = builtins
             .into_iter()
             .map(|rule| {
                 let descriptor = rule.descriptor();
                 let mut enabled = if only.is_empty() {
                     descriptor.default_enabled
                         || (descriptor.id == rules::NO_COMMENTS && settings.no_comments)
+                        || (descriptor.id == rules::STRAY_CONST && settings.stray_const)
                         || (descriptor.id == rules::TEST_QUALITY && settings.test_quality)
                 } else {
                     only.contains(&descriptor.id)
@@ -60,6 +68,8 @@ impl Scanner {
                 RegisteredRule { rule, enabled }
             })
             .collect();
+
+        rules::check_const_files(rules_enabled(&rules, rules::STRAY_CONST), settings)?;
 
         Ok(Self {
             rules,
