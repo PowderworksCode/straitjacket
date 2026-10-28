@@ -88,7 +88,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # High severity gates; everything else is visible in the job log. Tighten
       # per repository once the backlog is clear.
-      - uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
         with:
           min-severity: high
           advanced-security: false
@@ -241,7 +241,7 @@ jobs:
           echo "count=${count}" >> "$GITHUB_OUTPUT"
       # Heavy — it drives the compiler over the whole workspace — so the cache
       # earns its place, but only where the job will actually build.
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: steps.bins.outputs.count != '0'
       - name: Install hawk
         if: steps.bins.outputs.count != '0'
