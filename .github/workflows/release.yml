@@ -210,7 +210,7 @@ jobs:
       # published this way, because crates.io will not attach a trusted
       # publisher to a crate that does not exist yet. Delete the secret once
       # the trusted publisher is configured and this step takes over again.
-      - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
         id: auth
         if: env.HAS_STORED_TOKEN == 'false'
       - name: Publish
